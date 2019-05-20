@@ -213,19 +213,11 @@ class STANDBY (Command):
 #---------------------------------------------------------------------------#
 
 @dataclass
-class Transaction (annotation.Annotation):
+class Transaction (annotation.Transaction):
     '''Host Command transaction.'''
-    miso_size: int  # number of bytes read from MISO line
-    mosi_size: int  # number of bytes written to MOSI line.
+    pass
 
     @property
-    def id_ (self) -> int:
-        return annotation.Id.TRANSACTION
-
-    @property
-    def strings_ (self):
-        return [f'Host Command transaction: out: {self.mosi_size}B, in: {self.miso_size}B',
-                f'Host Cmd: {self.mosi_size}B',
-                'Host',
-                'H']
+    def name_ (self) -> str:
+        return 'Host Command'
 

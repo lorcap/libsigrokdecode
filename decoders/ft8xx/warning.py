@@ -38,7 +38,15 @@ class InvalidParameterValue (Warning):
 
     @property
     def strings_ (self) -> List[str]:
-        return [f'invalid parameter value: {self.name}={self._int_str(val)}']
+        return [f'invalid parameter value: {self._par_str(self.name, self.val)}']
+
+@dataclass
+class MissingDummy (Warning):
+    '''Warning for missing memory write dummy byte.'''
+
+    @property
+    def strings_ (self) -> List[str]:
+        return ['missing dummy byte']
 
 @dataclass
 class TrailingData (Warning):
@@ -50,19 +58,19 @@ class TrailingData (Warning):
         return [f'trailing data: {self.count}B']
 
 @dataclass
-class TruncatedCommand (Warning):
+class TruncatedCommand (annotation.Warning):
+    '''Warning for not enough data for making a command.'''
 
     @property
     def strings_ (self) -> List[str]:
         return ['truncated command']
 
 @dataclass
-class UnknownCommand (Warning):
+class UnknownCommand (annotation.Warning):
     '''Warning for invalid parameter value.'''
     val: int    # raw value
 
     @property
     def strings_ (self) -> List[str]:
-        val = f'{self.val:02X}' if self.val <= 0xff else f'{self.val:08X}'
-        return [f'unknown command: 0x{val} ({self.val})']
+        return [f'unknown command: {self._par_str(self.val)}']
 

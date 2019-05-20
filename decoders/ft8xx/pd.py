@@ -18,15 +18,13 @@
 ##
 
 import sigrokdecode as srd
-from . import annotation
-from . import host_cmd
-from . import warning
+from . import annotation, displist_cmd, host_cmd, memory, warning
 
 class Int:
     '''Integer juggler.'''
     __slots__ = ('ss', 'es', 'val', 'size')
 
-    def __init__ (self, ss, es, bytes, byteorder='little', *, signed=False):
+    def __init__ (self, ss: int, es: int, bytes, byteorder='little', *, signed=False):
         self.ss   = ss    # start sample
         self.es   = es    # end sample
         self.val  = int.from_bytes(bytes, signed=signed, byteorder=byteorder)
@@ -53,16 +51,6 @@ class Int:
 
         return (self.val >> stop) & (2**(start - stop + 1) - 1)
 
-    def __iadd__ (self, other):
-        '''This is meant for memory addresses only.'''
-        ram = memory.ram_str(self.val)
-        if   ram == 'RAM_CMD':
-            self.val = (self.val + other) & 0x308fff
-        elif ram == 0x302578: # REG_CMDB_WRITE
-            pass
-        else:
-            self.val += other
-
 class Fsm:
     '''Decoding finite-state machine implemented as coroutine.'''
 
@@ -73,7 +61,7 @@ class Fsm:
         self.miso_size  = 0             # number of bytes read
         self.mosi_size  = 0             # number of bytes written
 
-        self._addr      = None          # current address when accessing memory
+        self._addr      = 0             # current address when accessing memory
         self._out       = []            # list of output data
 
     def __iter__ (self):
@@ -85,8 +73,9 @@ class Fsm:
             self.out = warning.TruncatedCommand(self.ss[0], self.es[-1])
             raise
 
-        host_cmd_active = False
-        if sum(self.val) == 0x000000:
+        if sum(self.val) != 0x000000:
+            host_cmd_active = False
+        else:
             # Uhm... host command ACTIVE or memory read at 0x000000xx?
             try:
                 yield from self.read_uint8('mosi')
@@ -95,35 +84,50 @@ class Fsm:
 
         transaction_type = self.val[0] & 0xc0
 
-#        iftransaction_type == 0x00 and not host_cmd_active:
-#            # Host Memory Read
-#            self._addr = self._start_addr = addr = yield from self.read_addr(u8)
-#            self.out = memory.Address(*addr, ann.Id.WRITE_ADDRESS)
-#            dummy = yield from self.read_uint8('mosi')
-#            self.out = memory.Dummy(*dummy)
-#            try:
-#                yield from self.decode_memory('miso')
-#            except GeneratorExit:
-#                self.out = memory.Transaction(
-#                        addr.ss, self.es[-1],
-#                        self.miso_size, self.mosi_size)
-#                raise
+        if transaction_type == 0x00 and not host_cmd_active:
+            # Host Memory Read
+            self._addr = self.read_addr()
+            self.out = memory.HostRead(*self._addr)
 
-#        if transaction_type == 0x80:
-#            # Host Memory Write
-#            self._addr = addr = yield from self.read_addr(u8)
-#            self.out = memory.Address(*addr, ann.Id.WRITE_ADDRESS)
-#            try:
-#                yield from self.decode_memory('mosi')
-#            except GeneratorExit:
-#                self.out = memory.Transaction(
-#                        addr.ss, self.es[-1],
-#                        self.miso_size, self.mosi_size)
-#                raise
+            if len(self.val) == 4:
+                dummy = Int(self.ss[-1], self.es[-1], self.val[-1:])
+            else:
+                try:
+                    dummy = yield from self.read_uint8('mosi')
+                except GeneratorExit:
+                    self.out = warning.MissingDummy(self.ss[0], self.es[-1])
+                    raise
+            self.out = memory.Dummy(*dummy)
+
+            try:
+                yield from self.decode_memory('miso')
+            except GeneratorExit:
+                self.out = memory.Transaction(
+                        transaction_ss, self.es[-1],
+                        self.miso_size, self.mosi_size)
+                raise
+
+        if transaction_type == 0x80:
+            # Host Memory Write
+            addr = self.read_addr()
+            self.out = memory.HostWrite(*addr)
+
+            try:
+                self._addr = addr.val
+                yield from self.decode_memory('mosi')
+            except GeneratorExit:
+                self.out = memory.WriteTransaction(
+                        addr.ss, self.es[-1],
+                        self.miso_size, self.mosi_size)
+                raise
 
         if transaction_type == 0x40 or host_cmd_active:
             # Host Command
-            self.decode_host_command()
+            byte1 = Int(self.ss[0], self.es[0], self.val[0:1])
+            byte2 = Int(self.ss[1], self.es[1], self.val[1:2])
+            byte3 = Int(self.ss[2], self.es[2], self.val[2:3])
+            self.decode_host_command(byte1, byte2, byte3)
+
             self.out = host_cmd.Transaction(
                     self.ss[0], self.es[-1],
                     self.miso_size, self.mosi_size)
@@ -144,31 +148,35 @@ class Fsm:
         '''Decode Host Memory Read/Write commands.'''
         cmd = True
         while cmd:
-            yield from self.read(line, 1)
             try:
-                u32 = yield from self.read_uint32(line, size=3)
-                ram_str = memory.ram_str(self._addr.val)
-                if   ram_str == 'RAM_DL':
-                    self.out = cmd = self.decode_dl_command(u32)
-                elif ram_str == 'RAM_CMD':
-                    self.out = cmd = self.decode_dl_command(u32)\
+                u32 = yield from self.read_uint32(line)
+                self.out = memory.Address(u32.ss, u32.es, self._addr, line)
+                ram = memory.space(self._addr)
+                if   ram == 'RAM_DL':
+                    cmd = self.decode_dl_command(u32)
+                elif ram == 'RAM_CMD':
+                    cmd = self.decode_dl_command(u32)\
                         or (yield from self.decode_coproc_command(u32))
+                else:
+                    cmd = False
+                    continue
+                self.out = cmd
             except GeneratorExit:
-                self.out = warning.TruncatedCommand(self._addr.ss, self.es[-1])
+                self.out = warning.TruncatedCommand(self.ss[0], self.es[-1])
                 raise
         else:
             warn = warning.UnknownCommand(*u32)
             while True:
                 try:
-                    u8 = yield from self.read_uint8(line)
+                    yield from self.read(line, 1)
                 except GeneratorExit:
+                    warn.es = self.es[-1]
                     self.out = warn
                     raise
-                warn = warn._replace(end=u8.es)
 
-    def read_addr (self, prev_int=None) -> Int:
+    def read_addr (self) -> Int:
         '''Read memory address.'''
-        addr = yield from self.read('mosi', count=3 - prev_int.size, byteorder='big', size=3)
+        addr = Int(self.ss[-3], self.es[-1], self.val[-3:], byteorder='big', signed=False)
         addr.val = addr[21:0]
         return addr
 
@@ -223,11 +231,8 @@ class Fsm:
 
     #########################################################################
 
-    def decode_host_command (self) -> None:
+    def decode_host_command (self, byte1: Int, byte2: Int, byte3: Int) -> None:
         '''Decode Host Commands.'''
-        byte1 = Int(self.ss[0], self.es[0], self.val[0:1])
-        byte2 = Int(self.ss[1], self.es[1], self.val[1:2])
-        byte3 = Int(self.ss[2], self.es[2], self.val[2:3])
 
         #-- Power Modes ----------------------------------------------------#
         if   byte1.val == 0x00:
@@ -293,34 +298,67 @@ class Fsm:
 
     #########################################################################
 
-#    def decode_dl_command (self, u32):
-#        '''Decode Display List commands.'''
-#        msb = u32[31:24]
-#
-#        if   msb == 0xff:
-#            # co-processor command
-#            return None
-#
-#        #-- Setting Graphics State -----------------------------------------#
-#        elif msb == 0x09:
-#            cmd = dl.ALPHA_FUNC(*u32, u32[10:8], u32[7:0])
-#
-#        #-- Drawing Actions ------------------------------------------------#
-#        elif msb == 0x1f:
-#            cmd = dl.BEGIN(*u32, u32[3:0])
-#
-#        #-- Execution Control ----------------------------------------------#
-#
-#        #-------------------------------------------------------------------#
-#        else:
-#            return None
-#
-#        self._addr += 4
-#        return cmd
+    def decode_dl_command (self, u32: Int):
+        '''Decode Display List commands.'''
+        msb = u32[31:24]
+
+        if   msb == 0xff:
+            # co-processor command
+            return None
+
+        #-- Setting Graphics State -----------------------------------------#
+        elif msb == 0x09:
+            cmd = displist_cmd.ALPHA_FUNC(*u32, func=u32[10:8], ref=u32[7:0])
+        elif msb == 0x2e:
+            cmd = displist_cmd.BITMAP_EXT_FORMAT(*u32, format=u32[15:0])
+        elif msb == 0x05:
+            cmd = displist_cmd.BITMAP_HANDLE(*u32, handle=u32[4:0])
+        elif msb == 0x07:
+            cmd = displist_cmd.BITMAP_LAYOUT(*u32, format=u32[23:19], linestride=u32[18:9], height=u32[8:0])
+        elif msb == 0x28:
+            cmd = displist_cmd.BITMAP_LAYOUT_H(*u32, linestride=u32[3:2], height=u32[1:0])
+        elif msb == 0x08:
+            cmd = displist_cmd.BITMAP_SIZE(*u32, filter=u32[20], wrapx=u32[19], wrapy=u32[18], width=u32[17:9], height=u32[8:0])
+        elif msb == 0x29:
+            cmd = displist_cmd.BITMAP_SIZE_H(*u32, width=u32[3:2], height=u32[1:0])
+        elif msb == 0x01:
+            cmd = displist_cmd.BITMAP_SOURCE(*u32, addr=u32[23:0])
+        elif msb == 0x2f:
+            cmd = displist_cmd.BITMAP_SWIZZLE(*u32, r=u32[11:9], g=u32[8:6], b=u32[5:3], a=u32[2:0])
+        elif msb == 0x15:
+            cmd = displist_cmd.BITMAP_TRANSFORM_A(*u32, p=u32[17], v=u32[16:0])
+        elif msb == 0x16:
+            cmd = displist_cmd.BITMAP_TRANSFORM_B(*u32, p=u32[17], v=u32[16:0])
+        elif msb == 0x17:
+            cmd = displist_cmd.BITMAP_TRANSFORM_C(*u32, c=u32[23:0])
+        elif msb == 0x18:
+            cmd = displist_cmd.BITMAP_TRANSFORM_D(*u32, p=u32[17], v=u32[16:0])
+        elif msb == 0x19:
+            cmd = displist_cmd.BITMAP_TRANSFORM_E(*u32, p=u32[17], v=u32[16:0])
+        elif msb == 0x1a:
+            cmd = displist_cmd.BITMAP_TRANSFORM_F(*u32, f=u32[23:0])
+        elif msb == 0x0b:
+            cmd = displist_cmd.BLEND_FUNC(*u32, src=u32[5:4], dst=u32[2:0])
+
+        elif msb == 0x04:
+            cmd = displist_cmd.COLOR_RGB(*u32, u32[23:16], u32[15:8], u32[7:0])
+
+        #-- Drawing Actions ------------------------------------------------#
+        elif msb == 0x1f:
+            cmd = displist_cmd.BEGIN(*u32, prim=u32[3:0])
+
+        #-- Execution Control ----------------------------------------------#
+
+        #-------------------------------------------------------------------#
+        else:
+            cmd = warning.UnknownCommand(*u32)
+
+        self._addr = memory.add(self._addr, 4)
+        return cmd
 
     #########################################################################
 
-#    def decode_coproc_command (self, u32):
+#    def decode_coproc_command (self, u32: Int):
 #        '''Decode Co-Processor Engine commands.'''
 #        if u32[31:24] != 0xff:
 #            return None
@@ -341,7 +379,6 @@ class Fsm:
 #        else:
 #            return None
 #
-#        self._addr += 4
 #        return cmd
 
 class Decoder (srd.Decoder):
@@ -354,29 +391,34 @@ class Decoder (srd.Decoder):
     inputs = ['spi']
     outputs = ['ft8xx']
     annotations = (
-        ('command'      , 'Command'     ),
-        ('dummy'        , 'Dummy'       ),
-        ('host_command' , 'HostCommand' ),
-        ('parameter'    , 'Parameter'   ),
-        ('read_address' , 'ReadAddress' ),
-        ('read_command' , 'ReadCommand' ),
-        ('read_data'    , 'ReadData'    ),
-        ('transaction'  , 'Transaction' ),
-        ('warning'      , 'Warning'     ),
-        ('write_address', 'WriteAddress'),
-        ('write_data'   , 'WriteData'   ),
+        ('command'          , 'Command'        ),
+        ('host_command'     , 'HostCommand'    ),
+        ('host_memory_read' , 'HostMemoryRead' ),
+        ('host_memory_write', 'HostMemoryWrite'),
+        ('parameter'        , 'Parameter'      ),
+        ('read_address'     , 'ReadAddress'    ),
+        ('read_command'     , 'ReadCommand'    ),
+        ('read_data'        , 'ReadData'       ),
+        ('transaction'      , 'Transaction'    ),
+        ('warning'          , 'Warning'        ),
+        ('write_address'    , 'WriteAddress'   ),
+        ('write_data'       , 'WriteData'      ),
+        ('write_dummy'      , 'WriteDummy'     ),
     )
     annotation_rows = (
-        ('transaction', 'Transaction', (annotation.Id.TRANSACTION  , )),
-        ('command'    , 'Command'    , (annotation.Id.HOST_COMMAND , )),
-        ('write'      , 'Write'      , (annotation.Id.COMMAND      ,
-                                        annotation.Id.PARAMETER    ,
-                                        annotation.Id.WRITE_ADDRESS,
-                                        annotation.Id.READ_ADDRESS ,
-                                        annotation.Id.DUMMY        ,
-                                        annotation.Id.WRITE_DATA   , )),
-        ('read'       , 'Read'       , (annotation.Id.READ_DATA    , )),
-        ('warning'    , 'Warning'    , (annotation.Id.WARNING      , )),
+        ('transaction', 'Transaction', (annotation.Id.TRANSACTION      , )),
+        ('command'    , 'Command'    , (annotation.Id.DISPLAY_LIST     ,
+                                        annotation.Id.HOST_COMMAND     ,
+                                        annotation.Id.HOST_MEMORY_READ ,
+                                        annotation.Id.HOST_MEMORY_WRITE, )),
+        ('write'      , 'Write'      , (annotation.Id.COMMAND          ,
+                                        annotation.Id.PARAMETER        ,
+                                        annotation.Id.WRITE_ADDRESS    ,
+                                        annotation.Id.WRITE_DATA       ,
+                                        annotation.Id.WRITE_DUMMY      , )),
+        ('read'       , 'Read'       , (annotation.Id.READ_ADDRESS     ,
+                                        annotation.Id.READ_DATA        , )),
+        ('warning'    , 'Warning'    , (annotation.Id.WARNING          , )),
     )
 
     def start (self):

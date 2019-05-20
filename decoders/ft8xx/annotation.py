@@ -23,18 +23,20 @@ from typing import List
 
 class Id:
     '''Annotation IDs.'''
-    COMMAND      ,\
-    DUMMY        ,\
-    HOST_COMMAND ,\
-    PARAMETER    ,\
-    READ_ADDRESS ,\
-    READ_COMMAND ,\
-    READ_DATA    ,\
-    TRANSACTION  ,\
-    WARNING      ,\
-    WRITE_ADDRESS,\
-    WRITE_DATA   ,\
-        = range(11)
+    COMMAND          ,\
+    DISPLAY_LIST     ,\
+    HOST_COMMAND     ,\
+    HOST_MEMORY_READ ,\
+    HOST_MEMORY_WRITE,\
+    PARAMETER        ,\
+    READ_ADDRESS     ,\
+    READ_DATA        ,\
+    TRANSACTION      ,\
+    WARNING          ,\
+    WRITE_ADDRESS    ,\
+    WRITE_DATA       ,\
+    WRITE_DUMMY      ,\
+        = range(13)
 
 #---------------------------------------------------------------------------#
 
@@ -44,11 +46,22 @@ class Annotation:
     ss_: int    # start sample
     es_: int    # end sample
 
-    #--- private ---#
+    @property
+    def name_ (self) -> str:
+        return self.__class__.__name__
 
-    def _int_str (self, val: int) -> str:
-        '''Standard representation of integers.'''
-        return str(val) if val < 10 else f'{val} [{val:X}h]'
+    def _par_str (self, val: int, name: str=None, desc: str=None) -> str:
+        '''Standard representation of parameter name and value.'''
+        int_str = str(val) if val < 10 else f'{val} [{val:_X}h]'
+        if name and desc:
+            return f'{name}={int_str}: {desc}'
+        elif name and not desc:
+            return f'{name}={int_str}'
+        elif not name and desc:
+            return f'{int_str}: {desc}'
+        else:
+            return int_str
+
 
 #---------------------------------------------------------------------------#
 
@@ -72,10 +85,6 @@ class Command (Annotation):
         self._warning = None # Warning annotation, if any
 
     @property
-    def name_ (self) -> str:
-        return self.__class__.__name__
-
-    @property
     def strings_ (self) -> List[str]:
         '''Generate annotation strings from dataclass' fields.'''
         long = list()
@@ -83,16 +92,15 @@ class Command (Annotation):
 
         for field_name in self._field_names():
             val = getattr(self, field_name)
-            int_str = self._int_str(val)
             try:
                 # field is represented by '<field_name>_str'
                 val_str = getattr(self, field_name + '_str')
-                long.append(f'{field_name}={int_str}: {val_str}')
+                long.append(self._par_str(val, field_name, val_str))
                 mid .append(val_str)
             except AttributeError:
                 # '<field_name>_str' doesn't exist
-                long.append(f'{field_name}={int_str}')
-                mid .append(int_str)
+                long.append(self._par_str(val, field_name))
+                mid .append(self._par_str(val))
 
         return ['{0}({1})'.format(self.name_, '; '.join(long)),
                 '{0}({1})'.format(self.name_, '; '.join(mid )),
@@ -117,4 +125,24 @@ class Command (Annotation):
         '''Make a warning annotation.'''
         assert(issubclass(cls, Warning))
         self._warning = cls(self.ss_, self.es_, args)
+
+#---------------------------------------------------------------------------#
+
+@dataclass
+class Transaction (Annotation):
+    '''Base class for transaction annotations.'''
+    miso_size: int  # number of bytes read from MISO line
+    mosi_size: int  # number of bytes written to MOSI line.
+
+    @property
+    def id_ (self) -> int:
+        return Id.TRANSACTION
+
+    @property
+    def strings_ (self):
+        name = self.name_
+        size = max(self.miso_size, self.mosi_size)
+        return [f'{name} transaction: out: {self.mosi_size}B, in: {self.miso_size}B',
+                f'{name}: {size}B',
+                name]
 
