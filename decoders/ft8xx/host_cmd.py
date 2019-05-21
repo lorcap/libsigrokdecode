@@ -19,7 +19,7 @@
 
 from dataclasses import dataclass
 from typing import List
-from . import annotation
+from . import annotation, warning
 
 
 @dataclass
@@ -96,7 +96,7 @@ class CLKSEL (Command):
           or (self.clock in (4, 5, 6) and self.pll == 1):
             return f'{self.clock}x osc frequency'
         else:
-            self._warn(warning.Warning, "invalid combination of 'clock' and 'pll'")
+            self._warning = warning.Message("invalid combination of 'clock' and 'pll'")
             return 'invalid'
 
 @dataclass
@@ -129,9 +129,7 @@ class PIN_PD_STATE (Command):
         elif self.pin == 0x17: return 'SPIM_MOSI'
         elif self.pin == 0x18: return 'SPIM_IO2'
         elif self.pin == 0x19: return 'SPIM_IO3'
-        else                 :
-            self._warn(warning.InvalidParameterValue, self.pin, 'pin')
-            return '(Reserved)'
+        else                 : return ''
 
     @property
     def setting_str (self):

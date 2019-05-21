@@ -61,9 +61,7 @@ class Command (annotation.Command):
         elif self.format == 37819: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10, 10)
         elif self.format == 37820: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(12, 10)
         elif self.format == 37821: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(12, 12)
-        else:
-            self._warning(warning.InvalidParameterValue, self.format, 'format')
-            return ''
+        else                     : return ''
 
 @dataclass
 class ALPHA_FUNC (Command):
@@ -81,9 +79,7 @@ class ALPHA_FUNC (Command):
         elif self.func == 5: return 'EQUAL'
         elif self.func == 6: return 'NOTEQUAL'
         elif self.func == 7: return 'ALWAYS'
-        else:
-            self._warning(warning.InvalidParameterValue, self.func, 'func')
-            return ''
+        else               : return ''
 
 @dataclass
 class BEGIN (Command):
@@ -101,9 +97,7 @@ class BEGIN (Command):
         elif self.prim == 7: return 'EDGE_STRIP_A'
         elif self.prim == 8: return 'EDGE_STRIP_B'
         elif self.prim == 9: return 'RECTS'
-        else:
-            self._warning(warning.InvalidParameterValue, self.prim, 'prim')
-            return ''
+        else               : return ''
 
 @dataclass
 class BITMAP_EXT_FORMAT (Command):
@@ -177,33 +171,30 @@ class BITMAP_SWIZZLE (Command):
     b: int  # blue component source channel
     a: int  # alpha component source channel
 
-    def _val_str (self, name: str) -> str:
-        val = getattr(self, name)
+    def _rgba_str (self, val: int) -> str:
         if   val == 0: return 'ZERO'
         elif val == 1: return 'ONE'
         elif val == 2: return 'RED'
         elif val == 3: return 'GREEN'
         elif val == 4: return 'BLUE'
         elif val == 5: return 'ALPHA'
-        else:
-            self._warning(warning.InvalidParameterValue, val, name)
-            return ''
+        else         : return ''
 
     @property
     def r_str (self) -> str:
-        return self._val_str('r')
+        return self._rgba_str(self.r)
 
     @property
     def g_str (self) -> str:
-        return self._val_str('g')
+        return self._rgba_str(self.g)
 
     @property
     def b_str (self) -> str:
-        return self._val_str('b')
+        return self._rgba_str(self.b)
 
     @property
     def a_str (self) -> str:
-        return self._val_str('a')
+        return self._rgba_str(self.a)
 
 @dataclass
 class BITMAP_TRANSFORM_A (Command):
@@ -277,9 +268,7 @@ class BLEND_FUNC (Command):
         elif val == 3: return 'DST_ALPHA'
         elif val == 4: return 'ONE_MINUS_SRC_ALPHA'
         elif val == 5: return 'ONE_MINUS_DST_ALPHA'
-        else:
-            self._warning(warning.InvalidParameterValue, val, name)
-            return ''
+        else         : return ''
 
     @property
     def src_str (self) -> str:
@@ -289,6 +278,68 @@ class BLEND_FUNC (Command):
     def dst_str (self) -> str:
         return self._val_str('dst')
 
+@dataclass
+class CALL (Command):
+    '''Execute a sequence of commands at another location in the display list.'''
+    dest: int   # offset of the destination address
+    addr_: int  # current address
+
+    def dest_is_valid (self) -> bool:
+        return 0 <= self.dest <= 8191
+
+    @property
+    def dest_str (self) -> str:
+        if self.dest_is_valid():
+            return self._par_str(self.addr_ + self.dest)
+        else:
+            return ''
+
+@dataclass
+class CELL (Command):
+    '''Specify the bitmap cell number for the VERTEX2F command.'''
+    cell: int   # bitmap cell number
+
+@dataclass
+class CLEAR (Command):
+    '''Clear buffers to preset values.'''
+    c: bool # clear color buffer
+    s: bool # clear stencil buffer
+    t: bool # clear tag buffer
+
+@dataclass
+class CLEAR_COLOR_A (Command):
+    '''Specify clear value for the alpha channel.'''
+    alpha: int  # alpha value used when the color buffer is cleared
+
+@dataclass
+class CLEAR_COLOR_RGB (Command):
+    '''Specify clear values for red, green and blue channels.'''
+    red: int    # red value used when the color buffer is cleared
+    blue: int   # blue value used when the color buffer is cleared
+    green: int  # green value used when the color buffer is cleared
+
+@dataclass
+class CLEAR_STENCIL (Command):
+    '''Specify clear value for the stencil buffer.'''
+    s: int  # value used when the stencil buffer is cleared
+
+@dataclass
+class CLEAR_TAG (Command):
+    '''Specify clear value for the tag buffer.'''
+    t: int  # value used when the tag buffer is cleared
+
+@dataclass
+class COLOR_A (Command):
+    '''Set the current color alpha.'''
+    alpha: int  # alpha for the current color
+
+@dataclass
+class COLOR_MASK (Command):
+    '''Enable or disable writing of color components.'''
+    r: bool # enable/disable the red channel update of the color buffer
+    g: bool # enable/disable the green channel update of the color buffer
+    b: bool # enable/disable the blue channel update of the color buffer
+    a: bool # enable/disable the alpha channel update of the color buffer
 
 @dataclass
 class COLOR_RGB (Command):
@@ -296,4 +347,14 @@ class COLOR_RGB (Command):
     red: int    # red value for the current color
     green: int  # green value for the current color
     blue: int   # blue value for the current color
+
+@dataclass
+class DISPLAY (Command):
+    '''End the display list.'''
+    pass
+
+@dataclass
+class END (Command):
+    '''End drawing a graphics primitive.'''
+    pass
 

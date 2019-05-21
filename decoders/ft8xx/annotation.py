@@ -38,8 +38,6 @@ class Id:
     WRITE_DUMMY      ,\
         = range(13)
 
-#---------------------------------------------------------------------------#
-
 @dataclass
 class Annotation:
     '''Base class for all annotations.'''
@@ -62,18 +60,8 @@ class Annotation:
         else:
             return int_str
 
-
 #---------------------------------------------------------------------------#
-
-@dataclass
-class Warning (Annotation):
-    '''Annotation common to all warnings.'''
-
-    @property
-    def id_ (self) -> int:
-        return Id.WARNING
-
-#---------------------------------------------------------------------------#
+from . import warning
 
 @dataclass
 class Command (Annotation):
@@ -90,24 +78,39 @@ class Command (Annotation):
         long = list()
         mid  = list()
 
-        for field_name in self._field_names():
-            val = getattr(self, field_name)
+        for name in self._field_names():
+            val = getattr(self, name)
             try:
-                # field is represented by '<field_name>_str'
-                val_str = getattr(self, field_name + '_str')
-                long.append(self._par_str(val, field_name, val_str))
-                mid .append(val_str)
+                # field is represented by '<name>_str'
+                val_str = getattr(self, name + '_str')
+                if not val_str:
+                    self._warning = warning.InvalidParameterValue(val, name)
             except AttributeError:
-                # '<field_name>_str' doesn't exist
-                long.append(self._par_str(val, field_name))
+                # '<name>_str' doesn't exist
+                val_str = ''
+
+            if val_str:
+                long.append(self._par_str(val, name, val_str))
+                mid .append(val_str)
+            else:
+                long.append(self._par_str(val, name))
                 mid .append(self._par_str(val))
 
-        return ['{0}({1})'.format(self.name_, '; '.join(long)),
-                '{0}({1})'.format(self.name_, '; '.join(mid )),
-                self.name_]
+        if len(mid):
+            long_str = '; '.join(long)
+            mid_str  = '; '.join(mid )
+            ret = [f'{self.name_}({long_str})',
+                   f'{self.name_}({mid_str})']
+            if len(mid) > 1:
+                ret.append(f'{self.name_}({mid[-1]})')
+        else:
+            ret = [f'{self.name_}()']
+
+        ret.append(self.name_)
+        return ret
 
     @property
-    def warning_ (self) -> Warning:
+    def warning_ (self) -> warning.Warning:
         '''Warning annotation, if any.'''
         return self._warning
 
@@ -120,11 +123,6 @@ class Command (Annotation):
     def _field_names (self) -> List[str]:
         return [f.name for f in dataclasses.fields(self)
                 if not f.name.endswith('_')]
-
-    def _warn (self, cls: Warning, *args) -> None:
-        '''Make a warning annotation.'''
-        assert(issubclass(cls, Warning))
-        self._warning = cls(self.ss_, self.es_, args)
 
 #---------------------------------------------------------------------------#
 

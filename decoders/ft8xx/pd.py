@@ -61,6 +61,8 @@ class Fsm:
         self.miso_size  = 0             # number of bytes read
         self.mosi_size  = 0             # number of bytes written
 
+        self._stack     = []            # stack for CALL/RETURN
+
         self._addr      = 0             # current address when accessing memory
         self._out       = []            # list of output data
 
@@ -339,9 +341,32 @@ class Fsm:
             cmd = displist_cmd.BITMAP_TRANSFORM_F(*u32, f=u32[23:0])
         elif msb == 0x0b:
             cmd = displist_cmd.BLEND_FUNC(*u32, src=u32[5:4], dst=u32[2:0])
-
+        elif msb == 0x1d:
+            cmd = displist_cmd.CALL(*u32, dest=u32[15:0], addr_=self._addr)
+            if cmd.dest_is_valid():
+                self._stack.append(self._addr + 4)
+        elif msb == 0x06:
+            cmd = displist_cmd.CELL(*u32, cell=u32[6:0])
+        elif msb == 0x26:
+            cmd = displist_cmd.CLEAR(*u32, c=u32[2], s=u32[1], t=u32[0])
+        elif msb == 0x0f:
+            cmd = displist_cmd.CLEAR_COLOR_A(*u32, alpha=u32[7:0])
+        elif msb == 0x02:
+            cmd = displist_cmd.CLEAR_COLOR_RGB(*u32, red=u32[23:16], blue=u32[15:8], green=u32[7:0])
+        elif msb == 0x11:
+            cmd = displist_cmd.CLEAR_STENCIL(*u32, s=u32[7:0])
+        elif msb == 0x12:
+            cmd = displist_cmd.CLEAR_TAG(*u32, t=u32[7:0])
+        elif msb == 0x10:
+            cmd = displist_cmd.COLOR_A(*u32, alpha=u32[4:0])
+        elif msb == 0x20:
+            cmd = displist_cmd.COLOR_MASK(*u32, r=u32[3], g=u32[2], b=u32[1], a=u32[0])
         elif msb == 0x04:
             cmd = displist_cmd.COLOR_RGB(*u32, u32[23:16], u32[15:8], u32[7:0])
+        elif msb == 0x00:
+            cmd = displist_cmd.DISPLAY(*u32)
+        elif msb == 0x21:
+            cmd = displist_cmd.END(*u32)
 
         #-- Drawing Actions ------------------------------------------------#
         elif msb == 0x1f:

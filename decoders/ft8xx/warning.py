@@ -22,7 +22,15 @@ from typing import List
 from . import annotation
 
 @dataclass
-class Warning (annotation.Warning):
+class Warning (annotation.Annotation):
+    '''Base class for warning annotations.'''
+
+    @property
+    def id_ (self) -> int:
+        return annotation.Id.WARNING
+
+@dataclass
+class Message (Warning):
     '''Generic warning with custom message.'''
     text: str   # message text
 
@@ -58,7 +66,7 @@ class TrailingData (Warning):
         return [f'trailing data: {self.count}B']
 
 @dataclass
-class TruncatedCommand (annotation.Warning):
+class TruncatedCommand (Warning):
     '''Warning for not enough data for making a command.'''
 
     @property
@@ -66,7 +74,7 @@ class TruncatedCommand (annotation.Warning):
         return ['truncated command']
 
 @dataclass
-class UnknownCommand (annotation.Warning):
+class UnknownCommand (Warning):
     '''Warning for invalid parameter value.'''
     val: int    # raw value
 
