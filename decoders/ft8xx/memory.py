@@ -22,17 +22,56 @@ from dataclasses import dataclass
 from typing import List
 from . import annotation
 
+@dataclass(frozen=True)
+class RAM_G:
+    begin: int = 0x000000
+    end  : int = 0x0fffff
+
+@dataclass(frozen=True)
+class ROM_FONT:
+    begin: int = 0x1e0000
+    end  : int = 0x2ffffb
+
+@dataclass(frozen=True)
+class ROM_FONT_ADDR:
+    begin: int = 0x2ffffc
+    end  : int = 0x2fffff
+
+@dataclass(frozen=True)
+class RAM_DL:
+    begin: int = 0x300000
+    end  : int = 0x301fff
+
+@dataclass(frozen=True)
+class RAM_REG:
+    begin: int = 0x302000
+    end  : int = 0x302fff
+
+@dataclass(frozen=True)
+class RAM_CMD:
+    begin: int = 0x308000
+    end  : int = 0x308fff
+
+@dataclass(frozen=True)
+class RAM_ERR_REPORT:
+    begin: int = 0x309800
+    end  : int = 0x3098ff
+
+@dataclass(frozen=True)
+class FLASH:
+    begin: int = 0x800000
+    end  : int = 0x800000 + 256*2**20 - 1
+
 def space (addr: int) -> str:
-    if   0x000000 <= addr <= 0x0fffff: return 'RAM_G'
-    elif 0x1e0000 <= addr <= 0x2ffffb: return 'ROM_FONT'
-    elif 0x2ffffc <= addr <= 0x2fffff: return 'ROM_FONT_ADDR'
-    elif 0x300000 <= addr <= 0x301fff: return 'RAM_DL'
-    elif 0x302000 <= addr <= 0x302fff: return 'RAM_REG'
-    elif 0x308000 <= addr <= 0x308fff: return 'RAM_CMD'
-    elif 0x309800 <= addr <= 0x3098ff: return 'RAM_ERR_REPORT'
-    elif 0x800000 <= addr <= 0x800000 + 256*2**20 - 1:
-                                       return 'Flash memory'
-    else                             : return None
+    if   RAM_G         .begin <= addr <= RAM_G         .end: return 'RAM_G'
+    elif ROM_FONT      .begin <= addr <= ROM_FONT      .end: return 'ROM_FONT'
+    elif ROM_FONT_ADDR .begin <= addr <= ROM_FONT_ADDR .end: return 'ROM_FONT_ADDR'
+    elif RAM_DL        .begin <= addr <= RAM_DL        .end: return 'RAM_DL'
+    elif RAM_REG       .begin <= addr <= RAM_REG       .end: return 'RAM_REG'
+    elif RAM_CMD       .begin <= addr <= RAM_CMD       .end: return 'RAM_CMD'
+    elif RAM_ERR_REPORT.begin <= addr <= RAM_ERR_REPORT.end: return 'RAM_ERR_REPORT'
+    elif FLASH         .begin <= addr <= FLASH         .end: return 'Flash memory'
+    else                                                   : return None
 
 def add (addr: int, offset: int) -> int:
     '''Advance in memory.'''

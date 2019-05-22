@@ -341,10 +341,6 @@ class Fsm:
             cmd = displist_cmd.BITMAP_TRANSFORM_F(*u32, f=u32[23:0])
         elif msb == 0x0b:
             cmd = displist_cmd.BLEND_FUNC(*u32, src=u32[5:4], dst=u32[2:0])
-        elif msb == 0x1d:
-            cmd = displist_cmd.CALL(*u32, dest=u32[15:0], addr_=self._addr)
-            if cmd.dest_is_valid():
-                self._stack.append(self._addr + 4)
         elif msb == 0x06:
             cmd = displist_cmd.CELL(*u32, cell=u32[6:0])
         elif msb == 0x26:
@@ -363,16 +359,69 @@ class Fsm:
             cmd = displist_cmd.COLOR_MASK(*u32, r=u32[3], g=u32[2], b=u32[1], a=u32[0])
         elif msb == 0x04:
             cmd = displist_cmd.COLOR_RGB(*u32, u32[23:16], u32[15:8], u32[7:0])
-        elif msb == 0x00:
-            cmd = displist_cmd.DISPLAY(*u32)
-        elif msb == 0x21:
-            cmd = displist_cmd.END(*u32)
+        elif msb == 0x0e:
+            cmd = displist_cmd.LINE_WIDTH(*u32, width=u32[11:0])
+        elif msb == 0x2a:
+            cmd = displist_cmd.PALETTE_SOURCE(*u32, addr=u32[21:0])
+        elif msb == 0x0d:
+            cmd = displist_cmd.POINT_SIZE(*u32, size=u32[12:0])
+        elif msb == 0x23:
+            cmd = displist_cmd.RESTORE_CONTEXT(*u32)
+        elif msb == 0x22:
+            cmd = displist_cmd.SAVE_CONTEXT(*u32)
+        elif msb == 0x1c:
+            cmd = displist_cmd.SCISSOR_SIZE(*u32, width=u32[23:12], height=u32[11:0])
+        elif msb == 0x1b:
+            cmd = displist_cmd.SCISSOR_XY(*u32, x=u32[21:11], y=u32[10:0])
+        elif msb == 0x0a:
+            cmd = displist_cmd.STENCIL_FUNC(*u32, func=u32[19:16], ref=u32[15:8], mask=u32[7:0])
+        elif msb == 0x13:
+            cmd = displist_cmd.STENCIL_MASK(*u32, mask=u32[7:0])
+        elif msb == 0x0c:
+            cmd = displist_cmd.STENCIL_OP(*u32, sfail=u32[5:3], spass=u32[2:0])
+        elif msb == 0x03:
+            cmd = displist_cmd.TAG(*u32, s=u32[7:0])
+        elif msb == 0x14:
+            cmd = displist_cmd.TAG_MASK(*u32, mask=u32[0])
+        elif msb == 0x27:
+            cmd = displist_cmd.VERTEX_FORMAT(*u32, frac=u32[2:0])
+        elif msb == 0x2b:
+            cmd = displist_cmd.VERTEX_TRANSLATE_X(*u32, x=u32[16:0])
+        elif msb == 0x2c:
+            cmd = displist_cmd.VERTEX_TRANSLATE_Y(*u32, y=u32[16:0])
 
         #-- Drawing Actions ------------------------------------------------#
         elif msb == 0x1f:
             cmd = displist_cmd.BEGIN(*u32, prim=u32[3:0])
+        elif msb == 0x21:
+            cmd = displist_cmd.END(*u32)
+        elif msb == 0x01:
+            cmd = displist_cmd.VERTEX2F(*u32, x=u32[29:15], y=u32[14:0])
+        elif msb == 0x02:
+            cmd = displist_cmd.VERTEX2II(*u32, x=u32[29:21], y=u32[20:12], handle=u32[11:7], cell=u32[6:0])
 
         #-- Execution Control ----------------------------------------------#
+        elif msb == 0x2d:
+            cmd = displist_cmd.NOP(*u32)
+        elif msb == 0x1e:
+            cmd = displist_cmd.JUMP(*u32, dest=u32[15:0])
+        elif msb == 0x25:
+            cmd = displist_cmd.MACRO(*u32, m=u32[1])
+        elif msb == 0x1d:
+            cmd = displist_cmd.CALL(*u32, dest=u32[15:0])
+            if cmd.dest_is_valid():
+                if len(self._stack) < 4:
+                    self._stack.append(self._addr + 4)
+                else:
+                    self.out = warning.Message('stack full')
+        elif msb == 0x24:
+            if self._stack:
+                cmd = displist_cmd.RETURN(*u32, addr=self._stack.pop())
+            else:
+                cmd = displist_cmd.RETURN(*u32)
+                self.out = warning.Message('stack empty')
+        elif msb == 0x00:
+            cmd = displist_cmd.DISPLAY(*u32)
 
         #-------------------------------------------------------------------#
         else:

@@ -29,6 +29,33 @@ class Command (annotation.Command):
     def id_ (self) -> int:
         return annotation.Id.DISPLAY_LIST
 
+    def _px_str (self, val: str) -> str:
+        '''Add pixel suffix, consistently.'''
+        return val + ' px'
+
+    def _px16_str (self, val: int) -> str:
+        '''Convert value to 1/15 pixel.'''
+        return self._px_str(str(val/16))
+
+@dataclass
+class Branch ():
+    '''Class common to branching commands.'''
+    dest: int   # offset of the destination address
+
+    def dest_is_valid (self) -> bool:
+        return 0 <= self.dest <= 8191
+
+    @property
+    def dest_str (self) -> str:
+        if self.dest_is_valid():
+            return self._par_str(memory.RAM_DL.begin + self.dest)
+        else:
+            return ''
+
+@dataclass
+class Format ():
+    '''Class common to bitmap format commands.'''
+
     @property
     def format_str (self) -> str:
         if   self.format ==     0: return 'ARGB1555'
@@ -64,10 +91,10 @@ class Command (annotation.Command):
         else                     : return ''
 
 @dataclass
-class ALPHA_FUNC (Command):
-    '''set the alpha test function.'''
+class Func ():
+    '''Class common to function test.'''
     func: int   # test function
-    ref: int    # reference value for the alpha test
+    ref: int    # reference value for the function test
 
     @property
     def func_str (self) -> str:
@@ -80,6 +107,13 @@ class ALPHA_FUNC (Command):
         elif self.func == 6: return 'NOTEQUAL'
         elif self.func == 7: return 'ALWAYS'
         else               : return ''
+
+# ------------------------------------------------------------------------- #
+
+@dataclass
+class ALPHA_FUNC (Func, Command):
+    '''set the alpha test function.'''
+    pass
 
 @dataclass
 class BEGIN (Command):
@@ -100,7 +134,7 @@ class BEGIN (Command):
         else               : return ''
 
 @dataclass
-class BITMAP_EXT_FORMAT (Command):
+class BITMAP_EXT_FORMAT (Format, Command):
     '''Specify the extended format of the bitmap.'''
     format: int # bitmap pixel format
 
@@ -110,7 +144,7 @@ class BITMAP_HANDLE (Command):
     handle: int # bitmap handle
 
 @dataclass
-class BITMAP_LAYOUT (Command):
+class BITMAP_LAYOUT (Format, Command):
     '''Specify the source bitmap memory format and layout for the current handle.'''
     format: int     # bitmap pixel format
     linestride: int # bitmap line strides, in bytes
@@ -279,20 +313,9 @@ class BLEND_FUNC (Command):
         return self._val_str('dst')
 
 @dataclass
-class CALL (Command):
+class CALL (Branch, Command):
     '''Execute a sequence of commands at another location in the display list.'''
-    dest: int   # offset of the destination address
-    addr_: int  # current address
-
-    def dest_is_valid (self) -> bool:
-        return 0 <= self.dest <= 8191
-
-    @property
-    def dest_str (self) -> str:
-        if self.dest_is_valid():
-            return self._par_str(self.addr_ + self.dest)
-        else:
-            return ''
+    pass
 
 @dataclass
 class CELL (Command):
@@ -357,4 +380,183 @@ class DISPLAY (Command):
 class END (Command):
     '''End drawing a graphics primitive.'''
     pass
+
+@dataclass
+class JUMP (Branch, Command):
+    '''Execute commands at another location in the display list.'''
+    pass
+
+@dataclass
+class LINE_WIDTH (Command):
+    '''Specify the width of lines to be drawn with primitive LINES in 1/16 pixel precision.'''
+    width: int  # line width in 1/16 pixel precision
+
+    @property
+    def width_str (self) -> str:
+        return self._pr16_str(self.width)
+
+@dataclass
+class MACRO (Command):
+    '''Execute a single command from a macro register.'''
+    m: int  # macro registers to read
+
+    @property
+    def m_str (self) -> str:
+        return f'REG_MACRO_{self.m}'
+
+@dataclass
+class NOP (Command):
+    '''No operation.'''
+    pass
+
+@dataclass
+class PALETTE_SOURCE (Command):
+    '''Specify the base address of the palette.'''
+    addr: int   # address of palette in RAM_G
+
+@dataclass
+class POINT_SIZE (Command):
+    '''Specify the radius of points.'''
+    size: int   # point radius in 1/16 pixel precision
+
+    @property
+    def size_str (self) -> str:
+        return self._px16_str(self.size)
+
+@dataclass
+class RESTORE_CONTEXT (Command):
+    '''Restore the current graphics context from the context stack.'''
+    pass
+
+@dataclass
+class RETURN (Command):
+    '''Return from a previous CALL command.'''
+    addr: int = 0 # return address
+
+    @property
+    def addr_str (self) -> str:
+        if self.addr:
+            return self._par_str(self.addr)
+        else:
+            return '(undefined)'
+
+@dataclass
+class SAVE_CONTEXT (Command):
+    '''Push the current graphics context on the context stack.'''
+    pass
+
+@dataclass
+class SCISSOR_SIZE (Command):
+    '''Specify the size of the scissor clip rectangle.'''
+    width: int  # width of the scissor clip rectangle, in pixels
+    height: int # height of the scissor clip rectangle, in pixels
+
+@dataclass
+class SCISSOR_XY (Command):
+    '''Specify the top left corner of the scissor clip rectangle.'''
+    x: int  # unsigned x coordinate of the scissor clip rectangle, in pixels
+    y: int  # unsigned y coordinates of the scissor clip rectangle, in pixels
+
+@dataclass
+class STENCIL_FUNC (Func, Command):
+    '''Set function and reference value for stencil testing.'''
+    mask: int   # mask that is ANDed with the reference value and the stored stencil value
+
+@dataclass
+class STENCIL_MASK (Command):
+    '''Control the writing of individual bits in the stencil planes.'''
+    mask: int   # mask used to enable writing stencil bits
+
+@dataclass
+class STENCIL_OP (Command):
+    '''Set stencil test actions.'''
+    sfail: int  # action to take when the stencil test fails
+    spass: int  # action to take when the stencil test passes
+
+    def _action_str (self, val) -> str:
+        if   val == 0: return 'ZERO'
+        elif val == 1: return 'KEEP'
+        elif val == 2: return 'REPLACE'
+        elif val == 3: return 'INCR'
+        elif val == 4: return 'DECR'
+        elif val == 5: return 'INVERT'
+        else         : return ''
+
+    @property
+    def sfail_str (self) -> str:
+        return self._action_str(self.sfail)
+
+    @property
+    def spass_str (self) -> str:
+        return self._action_str(self.spass)
+
+@dataclass
+class TAG (Command):
+    '''Attach the tag value for the following graphics objects drawn on the screen.'''
+    s: int  # tag value
+
+@dataclass
+class TAG_MASK (Command):
+    '''Control the writing of the tag buffer.'''
+    mask: bool  # allow updates to the tag buffer
+
+@dataclass
+class VERTEX2F (Command):
+    '''Start the operation of graphics primitives at the specified screen coordinate,
+    in the pixel precision defined by VERTEX_FORMAT.'''
+    x: int  # signed x-coordinate in units
+    y: int  # signed y-coordinate in units
+
+    def _coord_str (self, val: int) -> str:
+        if val > 2**14 - 1:
+            val -= 2**15
+        return self._px_str('{0}/{1}/{2}/{3}/{4}'.format(val, *[val/2**i for i in range(1,5)]))
+
+    @property
+    def x_str (self) -> str:
+        return self._coord_str(self.x)
+
+    @property
+    def y_str (self) -> str:
+        return self._coord_str(self.y)
+
+@dataclass
+class VERTEX2II (Command):
+    '''Start the operation of graphics primitive at the specified coordinates in pixel precision.'''
+    x: int      # X-coordinate in pixels, unsigned integer
+    y: int      # y-coordinate in pixels, unsigned integer
+    handle: int # bitmap handle
+    cell: int   # cell number
+
+@dataclass
+class VERTEX_FORMAT (Command):
+    '''Set the precision of VERTEX2F coordinates.'''
+    frac: int   # number of fractional bits in X, Y coordinates
+
+    @property
+    def frac_str (self) -> str:
+        if self.frac == 0:
+            return '1 pixel'
+        elif 1 <= self.frac <= 4:
+            return '1/{0} pixel'.format(2**self.frac)
+        else:
+            return ''
+
+@dataclass
+class VERTEX_TRANSLATE_X (Command):
+    '''Specify the vertex transformations X translation component.'''
+    x: int  # signed x-coordinate in 1/16 pixel
+
+    @property
+    def x_str (self) -> str:
+        return self._px16_str(self.x)
+
+@dataclass
+class VERTEX_TRANSLATE_Y (Command):
+    '''Specify the vertex transformations Y translation component.'''
+    y: int  # signed y-coordinate in 1/16 pixel
+
+    @property
+    def y_str (self) -> str:
+        return self._px16_str(self.y)
 

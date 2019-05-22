@@ -84,7 +84,7 @@ class Command (Annotation):
                 # field is represented by '<name>_str'
                 val_str = getattr(self, name + '_str')
                 if not val_str:
-                    self._warning = warning.InvalidParameterValue(val, name)
+                    self._warning = warning.InvalidParameterValue(self.ss_, self.es_, val, name)
             except AttributeError:
                 # '<name>_str' doesn't exist
                 val_str = ''
@@ -96,7 +96,7 @@ class Command (Annotation):
                 long.append(self._par_str(val, name))
                 mid .append(self._par_str(val))
 
-        if len(mid):
+        if mid:
             long_str = '; '.join(long)
             mid_str  = '; '.join(mid )
             ret = [f'{self.name_}({long_str})',
