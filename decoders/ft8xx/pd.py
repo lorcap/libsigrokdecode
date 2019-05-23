@@ -61,6 +61,7 @@ class Fsm:
         self.miso_size  = 0             # number of bytes read
         self.mosi_size  = 0             # number of bytes written
 
+        self._context   = 0             # context level from SAVE/RESTORE_CONTEXT
         self._stack     = 0             # stack level for CALL/RETURN
 
         self._addr      = 0             # current address when accessing memory
@@ -367,8 +368,16 @@ class Fsm:
             cmd = displist_cmd.POINT_SIZE(*u32, size=u32[12:0])
         elif msb == 0x23:
             cmd = displist_cmd.RESTORE_CONTEXT(*u32)
+            if self._context:
+                self._context -= 1
+            else:
+                self.out = warning.Message(u32.ss, u32.es, 'context underflow')
         elif msb == 0x22:
             cmd = displist_cmd.SAVE_CONTEXT(*u32)
+            if self._context < 4:
+                self._context += 1
+            else:
+                self.out = warning.Message(u32.ss, u32.es, 'context overflow')
         elif msb == 0x1c:
             cmd = displist_cmd.SCISSOR_SIZE(*u32, width=u32[23:12], height=u32[11:0],
                                             FT80x_width=u32[19:10], FT80x_height=u32[9:0])
@@ -415,13 +424,13 @@ class Fsm:
                 if self._stack < 4:
                     self._stack += 1
                 else:
-                    self.out = warning.Message('stack overflow')
+                    self.out = warning.Message(u32.ss, u32.es, 'stack overflow')
         elif msb == 0x24:
             cmd = displist_cmd.RETURN(*u32)
             if self._stack:
                 self._stack -= 1
             else:
-                self.out = warning.Message('stack underflow')
+                self.out = warning.Message(u32.ss, u32.es, 'stack underflow')
         elif msb == 0x00:
             cmd = displist_cmd.DISPLAY(*u32)
 

@@ -36,7 +36,7 @@ class Message (Warning):
 
     @property
     def strings_ (self) -> List[str]:
-        return [text]
+        return [self.text]
 
 @dataclass
 class InvalidParameterValue (Warning):

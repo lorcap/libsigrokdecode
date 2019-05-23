@@ -22,56 +22,54 @@ from dataclasses import dataclass
 from typing import List
 from . import annotation
 
-@dataclass(frozen=True)
-class RAM_G:
+class Space:
+    '''Memory space.'''
+    @classmethod
+    def contains (cls, addr: int) -> bool:
+        return cls.begin <= addr <= cls.end
+
+class RAM_G (Space):
     begin: int = 0x000000
     end  : int = 0x0fffff
 
-@dataclass(frozen=True)
-class ROM_FONT:
+class ROM_FONT (Space):
     begin: int = 0x1e0000
     end  : int = 0x2ffffb
 
-@dataclass(frozen=True)
-class ROM_FONT_ADDR:
+class ROM_FONT_ADDR (Space):
     begin: int = 0x2ffffc
     end  : int = 0x2fffff
 
-@dataclass(frozen=True)
-class RAM_DL:
+class RAM_DL (Space):
     begin: int = 0x300000
     end  : int = 0x301fff
 
-@dataclass(frozen=True)
-class RAM_REG:
+class RAM_REG (Space):
     begin: int = 0x302000
     end  : int = 0x302fff
 
-@dataclass(frozen=True)
-class RAM_CMD:
+class RAM_CMD (Space):
     begin: int = 0x308000
     end  : int = 0x308fff
 
-@dataclass(frozen=True)
-class RAM_ERR_REPORT:
+class RAM_ERR_REPORT (Space):
     begin: int = 0x309800
     end  : int = 0x3098ff
 
-@dataclass(frozen=True)
-class FLASH:
+class FLASH (Space):
     begin: int = 0x800000
     end  : int = 0x800000 + 256*2**20 - 1
 
 def space (addr: int) -> str:
-    if   RAM_G         .begin <= addr <= RAM_G         .end: return 'RAM_G'
-    elif ROM_FONT      .begin <= addr <= ROM_FONT      .end: return 'ROM_FONT'
-    elif ROM_FONT_ADDR .begin <= addr <= ROM_FONT_ADDR .end: return 'ROM_FONT_ADDR'
-    elif RAM_DL        .begin <= addr <= RAM_DL        .end: return 'RAM_DL'
-    elif RAM_REG       .begin <= addr <= RAM_REG       .end: return 'RAM_REG'
-    elif RAM_CMD       .begin <= addr <= RAM_CMD       .end: return 'RAM_CMD'
-    elif RAM_ERR_REPORT.begin <= addr <= RAM_ERR_REPORT.end: return 'RAM_ERR_REPORT'
-    elif FLASH         .begin <= addr <= FLASH         .end: return 'Flash memory'
-    else                                                   : return None
+    if   RAM_G         .contains(addr): return 'RAM_G'
+    elif ROM_FONT      .contains(addr): return 'ROM_FONT'
+    elif ROM_FONT_ADDR .contains(addr): return 'ROM_FONT_ADDR'
+    elif RAM_DL        .contains(addr): return 'RAM_DL'
+    elif RAM_REG       .contains(addr): return 'RAM_REG'
+    elif RAM_CMD       .contains(addr): return 'RAM_CMD'
+    elif RAM_ERR_REPORT.contains(addr): return 'RAM_ERR_REPORT'
+    elif FLASH         .contains(addr): return 'FLASH'
+    else                              : return None
 
 def add (addr: int, offset: int) -> int:
     '''Advance in memory.'''
@@ -145,16 +143,14 @@ class Address (annotation.Annotation):
 
     @property
     def addr_str (self):
-        addr = space(self.addr)
-        return addr if addr else '(unknown)'
+        s = space(self.addr)
+        return s if s else '(unknown space)'
 
     @property
     def strings_ (self) -> List[str]:
-        addr_long = self._par_str(self.addr, desc=self.addr_str)
-        addr_mid  = self._par_str(self.addr)
-        return [f'{self.name_}: {addr_long}',
-                f'Addr: {addr_mid}',
-                self.addr_str]
+        return [self._par_str(self.addr, desc=self.addr_str),
+                self._par_str(self.addr),
+                self._hex_str(self.addr)]
 
 #---------------------------------------------------------------------------#
 
