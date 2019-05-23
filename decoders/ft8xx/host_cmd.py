@@ -91,7 +91,7 @@ class CLKSEL (Command):
     def clock_str (self) -> str:
         if self.clock == 0 and self.pll == 0:
             ft80x_mhz = '36' if self.val_ == 0x61 else '48'
-            return ft80x_mhz + '/60/60MHz (FT80x/FT81x/BT81x)'
+            return self._variant(ft80x_mhz, '60', '60', 'MHz')
         elif (self.clock in (2, 3   ) and self.pll == 0)\
           or (self.clock in (4, 5, 6) and self.pll == 1):
             return f'{self.clock}x osc frequency'
@@ -149,10 +149,11 @@ class PINDRIVE (Command):
     @property
     def strength_str (self):
         if self.pin in (0x0d, 0x0b, 0x08, 0x0a, 0x09, 0x0c):
-            if   self.strength == 0x0: return '1.2/5mA (BT81x/FT81x)'
-            elif self.strength == 0x1: return '2.4/10mA (BT81x/FT81x)'
-            elif self.strength == 0x2: return '3.6/15mA (BT81x/FT81x)'
-            elif self.strength == 0x3: return '4.8/20mA (BT81x/FT81x)'
+            if   self.strength == 0x0: v = ( '5', '1.2')
+            elif self.strength == 0x1: v = ('10', '2.4')
+            elif self.strength == 0x2: v = ('15', '3.6')
+            elif self.strength == 0x3: v = ('20', '4.8')
+            return self._variant('-', *v, 'mA')
         else:
             if   self.strength == 0x0: return '5mA'
             elif self.strength == 0x1: return '10mA'

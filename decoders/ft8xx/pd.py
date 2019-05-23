@@ -61,7 +61,7 @@ class Fsm:
         self.miso_size  = 0             # number of bytes read
         self.mosi_size  = 0             # number of bytes written
 
-        self._stack     = []            # stack for CALL/RETURN
+        self._stack     = 0             # stack level for CALL/RETURN
 
         self._addr      = 0             # current address when accessing memory
         self._out       = []            # list of output data
@@ -370,9 +370,11 @@ class Fsm:
         elif msb == 0x22:
             cmd = displist_cmd.SAVE_CONTEXT(*u32)
         elif msb == 0x1c:
-            cmd = displist_cmd.SCISSOR_SIZE(*u32, width=u32[23:12], height=u32[11:0])
+            cmd = displist_cmd.SCISSOR_SIZE(*u32, width=u32[23:12], height=u32[11:0],
+                                            FT80x_width=u32[19:10], FT80x_height=u32[9:0])
         elif msb == 0x1b:
-            cmd = displist_cmd.SCISSOR_XY(*u32, x=u32[21:11], y=u32[10:0])
+            cmd = displist_cmd.SCISSOR_XY(*u32, x=u32[21:11], y=u32[10:0],
+                                          FT80x_x=u32[17:9], FT80x_y=u32[8:0])
         elif msb == 0x0a:
             cmd = displist_cmd.STENCIL_FUNC(*u32, func=u32[19:16], ref=u32[15:8], mask=u32[7:0])
         elif msb == 0x13:
@@ -410,16 +412,16 @@ class Fsm:
         elif msb == 0x1d:
             cmd = displist_cmd.CALL(*u32, dest=u32[15:0])
             if cmd.dest_is_valid():
-                if len(self._stack) < 4:
-                    self._stack.append(self._addr + 4)
+                if self._stack < 4:
+                    self._stack += 1
                 else:
-                    self.out = warning.Message('stack full')
+                    self.out = warning.Message('stack overflow')
         elif msb == 0x24:
+            cmd = displist_cmd.RETURN(*u32)
             if self._stack:
-                cmd = displist_cmd.RETURN(*u32, addr=self._stack.pop())
+                self._stack -= 1
             else:
-                cmd = displist_cmd.RETURN(*u32)
-                self.out = warning.Message('stack empty')
+                self.out = warning.Message('stack underflow')
         elif msb == 0x00:
             cmd = displist_cmd.DISPLAY(*u32)
 

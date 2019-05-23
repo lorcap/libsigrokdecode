@@ -431,14 +431,7 @@ class RESTORE_CONTEXT (Command):
 @dataclass
 class RETURN (Command):
     '''Return from a previous CALL command.'''
-    addr: int = 0 # return address
-
-    @property
-    def addr_str (self) -> str:
-        if self.addr:
-            return self._par_str(self.addr)
-        else:
-            return '(undefined)'
+    pass
 
 @dataclass
 class SAVE_CONTEXT (Command):
@@ -450,12 +443,16 @@ class SCISSOR_SIZE (Command):
     '''Specify the size of the scissor clip rectangle.'''
     width: int  # width of the scissor clip rectangle, in pixels
     height: int # height of the scissor clip rectangle, in pixels
+    FT80x_width: int
+    FT80x_height: int
 
 @dataclass
 class SCISSOR_XY (Command):
     '''Specify the top left corner of the scissor clip rectangle.'''
     x: int  # unsigned x coordinate of the scissor clip rectangle, in pixels
     y: int  # unsigned y coordinates of the scissor clip rectangle, in pixels
+    FT80x_x: int
+    FT80x_y: int
 
 @dataclass
 class STENCIL_FUNC (Func, Command):

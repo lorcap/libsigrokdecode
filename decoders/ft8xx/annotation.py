@@ -48,9 +48,13 @@ class Annotation:
     def name_ (self) -> str:
         return self.__class__.__name__
 
+    def _int_str (self, val: int) -> str:
+        '''Standard representation of an integer.'''
+        return str(val) if val < 10 else f'{val} [{val:_X}h]'
+
     def _par_str (self, val: int, name: str=None, desc: str=None) -> str:
         '''Standard representation of parameter name and value.'''
-        int_str = str(val) if val < 10 else f'{val} [{val:_X}h]'
+        int_str = self._int_str(val)
         if name and desc:
             return f'{name}={int_str}: {desc}'
         elif name and not desc:
@@ -59,6 +63,10 @@ class Annotation:
             return f'{int_str}: {desc}'
         else:
             return int_str
+
+    def _variant (self, ft80x: str, ft81x: str, bt81x: str, unit: str = '') -> str:
+        '''Standard representation of parameter variants.'''
+        return f'{ft80x}/{ft81x}/{bt81x}{unit} (FT80x/FT81x/BT81x)'
 
 #---------------------------------------------------------------------------#
 from . import warning
