@@ -1,7 +1,7 @@
 ##
 ## This file is part of the libsigrokdecode project.
 ##
-## Copyright (C) 2018 Lorenzo Cappelletti <lorenzo.cappelletti@gmail.com>
+## Copyright (C) 2018-2019 Lorenzo Cappelletti <lorenzo.cappelletti@gmail.com>
 ##
 ## This program is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 from dataclasses import dataclass
 from typing import List
 from . import annotation, warning
-
 
 @dataclass
 class Byte1 (annotation.Annotation):
