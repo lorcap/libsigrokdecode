@@ -26,6 +26,10 @@ class Reg (annotation.Command):
     '''Base class for all register annotations.'''
 
     @property
+    def val (self):
+        return self.val_
+
+    @property
     def id_ (self) -> int:
         return annotation.Id.RAMREG
 
@@ -134,11 +138,16 @@ class REG_CLOCK (Reg):
 @dataclass
 class REG_FREQUENCY (Reg):
     '''Main clock frequency (Hz).'''
-    pass
+
+    @property
+    def val_str (self) -> str:
+        if   self.val >= 10**6: return str(self.val/10**6) + 'MHz'
+        elif self.val >= 10**3: return str(self.val/10**3) + 'kHz'
+        else                  : return str(self.val      ) + 'Hz'
 
 @dataclass
 class REG_RENDERMODE (Reg):
-    ''''''
+    '''Rendering mode.'''
 
     @property
     def val_str (self) -> str:

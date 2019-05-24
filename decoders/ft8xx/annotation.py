@@ -55,11 +55,13 @@ class Annotation:
 
     def _int_str (self, val: int) -> str:
         '''Uniform representation of an integer.'''
-        return str(val) if val < 10 else f'{val} [{self._hex_str(val)}]'
+        return str(val) if val < 10 else f'{val:_d} [{self._hex_str(val)}]'
 
-    def _par_str (self, val: int, name: str=None, desc: str=None) -> str:
+    def _par_str (self, val: int, name: str='', desc: str='') -> str:
         '''Uniform representation of parameter name and value.'''
         int_str = self._int_str(val)
+        if name == 'val_':
+            name = ''
         if name and desc:
             return f'{name}={int_str}: {desc}'
         elif name and not desc:
@@ -95,7 +97,7 @@ class Command (Annotation):
             val = getattr(self, name)
             try:
                 # field is represented by '<name>_str'
-                val_str = getattr(self, name + '_str')
+                val_str = getattr(self, name.rstrip('_') + '_str')
                 if not val_str:
                     self._warning = warning.InvalidParameterValue(self.ss_, self.es_, val, name)
             except AttributeError:

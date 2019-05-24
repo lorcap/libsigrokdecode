@@ -58,13 +58,15 @@ class Fsm:
         self.val        = bytearray()   # current value
         self.ss         = []            # sample start buffer
         self.es         = []            # sample end buffer
+        self.size       = 0             # number of bytes to read()
+        self.count      = 0             # number of bytes to effectively read
         self.miso_size  = 0             # number of bytes read
         self.mosi_size  = 0             # number of bytes written
 
-        self._context   = 0             # context level from SAVE/RESTORE_CONTEXT
-        self._stack     = 0             # stack level for CALL/RETURN
+        self.addr       = 0             # current address when accessing memory
+        self.context    = 0             # context level from SAVE/RESTORE_CONTEXT
+        self.stack      = 0             # stack level for CALL/RETURN
 
-        self._addr      = 0             # current address when accessing memory
         self._out       = []            # list of output data
 
     def __iter__ (self):
@@ -103,7 +105,7 @@ class Fsm:
             self.out = memory.Dummy(*dummy)
 
             try:
-                self._addr = addr.val
+                self.addr = addr.val
                 yield from self.decode_memory('miso')
             except GeneratorExit:
                 self.out = memory.ReadTransaction(
@@ -117,7 +119,7 @@ class Fsm:
             self.out = memory.HostWrite(*addr)
 
             try:
-                self._addr = addr.val
+                self.addr = addr.val
                 yield from self.decode_memory('mosi')
             except GeneratorExit:
                 self.out = memory.WriteTransaction(
@@ -154,8 +156,8 @@ class Fsm:
         while cmd:
             try:
                 u32 = yield from self.read_uint32(line)
-                self.out = memory.Address(u32.ss, u32.es, self._addr, line)
-                ram = memmap.space(self._addr)
+                self.out = memory.Address(u32.ss, u32.es, self.addr, line)
+                ram = memmap.space(self.addr)
                 if   ram == 'RAM_DL':
                     cmd = self.decode_displist(u32)
                 elif ram == 'RAM_REG':
@@ -167,7 +169,8 @@ class Fsm:
                     cmd = None
                 self.out = cmd
             except GeneratorExit:
-                self.out = warning.TruncatedCommand(self.ss[0], self.es[-1])
+                if self.truncated():
+                    self.out = warning.TruncatedCommand(self.ss[0], self.es[-1])
                 raise
         else:
             warn = warning.UnknownCommand(*u32)
@@ -198,6 +201,9 @@ class Fsm:
         assert 0 < count <= 4
         assert line in ('miso', 'mosi')
 
+        self.size = size
+        self.count = count
+
         for i in range(count):
             mosi, miso = yield self.out
             if line == 'mosi':
@@ -209,6 +215,7 @@ class Fsm:
             self.val.append(byte.val)
             self.ss .append(byte.ss )
             self.es .append(byte.es )
+            self.count += 1
 
         # truncate FIFO to the last 4 bytes
         self.val = self.val[-4:]
@@ -221,6 +228,10 @@ class Fsm:
             size = count
         return Int(self.ss[-size], self.es[-1], self.val[-size:],
                    byteorder=byteorder, signed=signed)
+
+    def truncated (self) -> bool:
+        '''Detect whether not all expected bytes were read.'''
+        return self.count < self.size
 
     @property
     def out (self):
@@ -305,7 +316,7 @@ class Fsm:
 
     def decode_ramreg (self, u32: Int):
         '''Decode RAM Registers.'''
-        offset = self._addr - memmap.RAM_REG.begin
+        offset = self.addr - memmap.RAM_REG.begin
 
         if   offset == 0x000:
             reg = ramreg.REG_ID(*u32)
@@ -313,10 +324,22 @@ class Fsm:
             reg = ramreg.REG_FRAMES(*u32)
         elif offset == 0x008:
             reg = ramreg.REG_CLOCK(*u32)
+        elif offset == 0x00c:
+            reg = ramreg.REG_FREQUENCY(*u32)
+        elif offset == 0x010:
+            reg = ramreg.REG_RENDERMODE(*u32)
+        elif offset == 0x014:
+            reg = ramreg.REG_SNAPY(*u32)
+        elif offset == 0x018:
+            reg = ramreg.REG_SNAPSHOT(*u32)
+        elif offset == 0x01c:
+            reg = ramreg.REG_SNAPFORMAT(*u32)
+        elif offset == 0x020:
+            reg = ramreg.REG_CPURESET(*u32)
         else:
-            reg = warning.UnknownRegister(*u32, self._addr)
+            reg = warning.UnknownRegister(*u32, self.addr)
 
-        self._addr = memmap.add(self._addr, 4)
+        self.addr = memmap.add(self.addr, 4)
         return reg
 
     #########################################################################
@@ -388,14 +411,14 @@ class Fsm:
             cmd = displist.POINT_SIZE(*u32, size=u32[12:0])
         elif msb == 0x23:
             cmd = displist.RESTORE_CONTEXT(*u32)
-            if self._context:
-                self._context -= 1
+            if self.context:
+                self.context -= 1
             else:
                 self.out = warning.Message(u32.ss, u32.es, 'context underflow')
         elif msb == 0x22:
             cmd = displist.SAVE_CONTEXT(*u32)
-            if self._context < 4:
-                self._context += 1
+            if self.context < 4:
+                self.context += 1
             else:
                 self.out = warning.Message(u32.ss, u32.es, 'context overflow')
         elif msb == 0x1c:
@@ -441,14 +464,14 @@ class Fsm:
         elif msb == 0x1d:
             cmd = displist.CALL(*u32, dest=u32[15:0])
             if cmd.dest_is_valid():
-                if self._stack < 4:
-                    self._stack += 1
+                if self.stack < 4:
+                    self.stack += 1
                 else:
                     self.out = warning.Message(u32.ss, u32.es, 'stack overflow')
         elif msb == 0x24:
             cmd = displist.RETURN(*u32)
-            if self._stack:
-                self._stack -= 1
+            if self.stack:
+                self.stack -= 1
             else:
                 self.out = warning.Message(u32.ss, u32.es, 'stack underflow')
         elif msb == 0x00:
@@ -458,7 +481,7 @@ class Fsm:
         else:
             cmd = warning.UnknownCommand(*u32)
 
-        self._addr = memmap.add(self._addr, 4)
+        self.addr = memmap.add(self.addr, 4)
         return cmd
 
     #########################################################################
