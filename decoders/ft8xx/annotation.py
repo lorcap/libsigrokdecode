@@ -24,11 +24,12 @@ from typing import List
 class Id:
     '''Annotation IDs.'''
     COMMAND          ,\
-    DISPLAY_LIST     ,\
-    HOST_COMMAND     ,\
+    DISPLIST         ,\
+    HOSTCMD          ,\
     HOST_MEMORY_READ ,\
     HOST_MEMORY_WRITE,\
     PARAMETER        ,\
+    RAMREG           ,\
     READ_ADDRESS     ,\
     READ_DATA        ,\
     TRANSACTION      ,\
@@ -36,7 +37,7 @@ class Id:
     WRITE_ADDRESS    ,\
     WRITE_DATA       ,\
     WRITE_DUMMY      ,\
-        = range(13)
+        = range(14)
 
 @dataclass
 class Annotation:

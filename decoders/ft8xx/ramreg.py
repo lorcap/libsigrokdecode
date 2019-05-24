@@ -22,9 +22,17 @@ from typing import List
 from . import annotation, warning
 
 @dataclass
-class Reg (annotation.Annotation):
+class Reg (annotation.Command):
     '''Base class for all register annotations.'''
-    val: int    # register value
+
+    @property
+    def id_ (self) -> int:
+        return annotation.Id.RAMREG
+
+    #--- private ---#
+
+    def _field_names (self) -> List[str]:
+        return ['val_']
 
 @dataclass(frozen=True)
 class Sound:
@@ -32,7 +40,7 @@ class Sound:
     continuous: str
     pitch_adjust: str
 
-sound = dict(
+sound = {
         0x00: Sound('silence'      , True , False),
         0x01: Sound('square wave'  , True , True ),
         0x02: Sound('sine wave'    , True , True ),
@@ -91,9 +99,9 @@ sound = dict(
         0x58: Sound('chack'        , False, False),
         0x60: Sound('mute'         , False, False),
         0x61: Sound('unmute'       , False, False),
-)
+}
 
-note = dict(24: 'C1' , 36: 'C2' , 48: 'C3' , 60: 'C4' , 72: 'C5' , 84: 'C6' ,  96: 'C7' , 108: 'C8',\
+note = {    24: 'C1' , 36: 'C2' , 48: 'C3' , 60: 'C4' , 72: 'C5' , 84: 'C6' ,  96: 'C7' , 108: 'C8',\
             25: 'Cs1', 37: 'Cs2', 49: 'Cs3', 61: 'Cs4', 73: 'Cs5', 85: 'Cs6',  97: 'Cs7',           \
             26: 'D1' , 38: 'D2' , 50: 'D3' , 62: 'D4' , 74: 'D5' , 86: 'D6' ,  98: 'D7' ,           \
             27: 'Ds1', 39: 'Ds2', 51: 'Ds3', 63: 'Ds4', 75: 'Ds5', 87: 'Ds6',  99: 'Ds7',           \
@@ -104,32 +112,32 @@ note = dict(24: 'C1' , 36: 'C2' , 48: 'C3' , 60: 'C4' , 72: 'C5' , 84: 'C6' ,  9
             32: 'Gs1', 44: 'Gs2', 56: 'Gs3', 68: 'Gs4', 80: 'Gs5', 92: 'Gs6', 104: 'Gs7',           \
 21: 'A0' ,  33: 'A1' , 45: 'A2' , 57: 'A3' , 69: 'A4' , 81: 'A5' , 93: 'A6' , 105: 'A7' ,           \
 22: 'As0',  34: 'As1', 46: 'As2', 58: 'As3', 70: 'As4', 82: 'As5', 94: 'As6', 106: 'As7',           \
-23: 'B0' ,  35: 'B1' , 47: 'B2' , 59: 'B3' , 71: 'B4' , 83: 'B5' , 95: 'B6' , 107: 'B7' ,           )
+23: 'B0' ,  35: 'B1' , 47: 'B2' , 59: 'B3' , 71: 'B4' , 83: 'B5' , 95: 'B6' , 107: 'B7' ,           }
 
 # ------------------------------------------------------------------------- #
 
 @dataclass
-class ID (Reg):
+class REG_ID (Reg):
     '''Identification register.'''
     pass
 
 @dataclass
-class FRAMES (Reg):
+class REG_FRAMES (Reg):
     '''Frame counter, since reset.'''
     pass
 
 @dataclass
-class CLOCK (Reg):
+class REG_CLOCK (Reg):
     '''Clock cycles, since reset.'''
     pass
 
 @dataclass
-class FREQUENCY (Reg):
+class REG_FREQUENCY (Reg):
     '''Main clock frequency (Hz).'''
     pass
 
 @dataclass
-class RENDERMODE (Reg):
+class REG_RENDERMODE (Reg):
     ''''''
 
     @property
@@ -139,22 +147,22 @@ class RENDERMODE (Reg):
         else              : return ''
 
 @dataclass
-class SNAPY (Reg):
+class REG_SNAPY (Reg):
     '''Scanline select for RENDERMODE 1.'''
     pass
 
 @dataclass
-class SNAPSHOT (Reg):
+class REG_SNAPSHOT (Reg):
     '''Trigger for RENDERMODE 1'''
     pass
 
 @dataclass
-class SNAPFORMAT (Reg):
+class REG_SNAPFORMAT (Reg):
     '''Pixel format for scanline readout.'''
     pass
 
 @dataclass
-class CPURESET (Reg):
+class REG_CPURESET (Reg):
     '''Graphics, audio and touch engines reset control.'''
 
     @property
@@ -169,67 +177,67 @@ class CPURESET (Reg):
             return '(none)'
 
 @dataclass
-class TAP_CRC (Reg):
+class REG_TAP_CRC (Reg):
     '''Live video tap CRC.'''
     pass
 
 @dataclass
-class TAP_MASK (Reg):
+class REG_TAP_MASK (Reg):
     '''Live video tap mask.'''
     pass
 
 @dataclass
-class HCYCLE (Reg):
+class REG_HCYCLE (Reg):
     '''Horizontal total cycle count.'''
     pass
 
 @dataclass
-class HOFFSET (Reg):
+class REG_HOFFSET (Reg):
     '''Horizontal display start offset.'''
     pass
 
 @dataclass
-class HSIZE (Reg):
+class REG_HSIZE (Reg):
     '''Horizontal display pixel count.'''
     pass
 
 @dataclass
-class HSYNC0 (Reg):
+class REG_HSYNC0 (Reg):
     '''Horizontal sync fall offset.'''
     pass
 
 @dataclass
-class HSYNC1 (Reg):
+class REG_HSYNC1 (Reg):
     '''Horizontal sync rise offset.'''
     pass
 
 @dataclass
-class VCYCLE (Reg):
+class REG_VCYCLE (Reg):
     '''Vertical total cycle count.'''
     pass
 
 @dataclass
-class VOFFSET (Reg):
+class REG_VOFFSET (Reg):
     '''Vertical display start offset.'''
     pass
 
 @dataclass
-class VSIZE (Reg):
+class REG_VSIZE (Reg):
     '''Vertical display line count.'''
     pass
 
 @dataclass
-class VSYNC0 (Reg):
+class REG_VSYNC0 (Reg):
     '''Vertical sync fall offset.'''
     pass
 
 @dataclass
-class VSYNC1 (Reg):
+class REG_VSYNC1 (Reg):
     '''Vertical sync rise offset.'''
     pass
 
 @dataclass
-class DLSWAP (Reg):
+class REG_DLSWAP (Reg):
     '''Display list swap control.'''
 
     @property
@@ -240,7 +248,7 @@ class DLSWAP (Reg):
         else             : return ''
 
 @dataclass
-class ROTATE (Reg):
+class REG_ROTATE (Reg):
     '''Screen rotation control.'''
 
     @property
@@ -256,7 +264,7 @@ class ROTATE (Reg):
         else                  : return ''
 
 @dataclass
-class OUTBITS (Reg):
+class REG_OUTBITS (Reg):
     '''Output bit resolution.'''
     red: int    # red color signal lines number
     green: int  # green color signal lines number
@@ -279,12 +287,12 @@ class OUTBITS (Reg):
         return self._outbit_str(self.blue)
 
 @dataclass
-class DITHER (Reg):
+class REG_DITHER (Reg):
     '''Output dither enable.'''
     pass
 
 @dataclass
-class SWIZZLE
+class REG_SWIZZLE (Reg):
     '''Output RGB signal swizzle.'''
 
     @property
@@ -308,12 +316,12 @@ class SWIZZLE
         else                   : return ''
 
 @dataclass
-class Output RGB signal swizzle (Reg):
+class REG_CSPREAD (Reg):
     '''Output clock spreading enable.'''
     pass
 
 @dataclass
-class PCLK_POL (Reg):
+class REG_PCLK_POL (Reg):
     '''PCLK polarity.'''
 
     @property
@@ -323,7 +331,7 @@ class PCLK_POL (Reg):
         else              : return ''
 
 @dataclass
-class PCLK polarity (Reg):
+class REG_PCLK (Reg):
     '''PCLK frequency divider.'''
 
     @property
@@ -332,38 +340,38 @@ class PCLK polarity (Reg):
         else              : return '÷'+self.val
 
 @dataclass
-class TAG_Y (Reg):
+class REG_TAG_Y (Reg):
     '''Tag query Y coordinate.'''
     pass
 
 @dataclass
-class TAG_X (Reg):
+class REG_TAG_X (Reg):
     '''Tag query X coordinate.'''
     pass
 
 @dataclass
-class TAG (Reg):
+class REG_TAG (Reg):
     '''Tag query result.'''
     pass
 
 @dataclass
-class VOL_PB (Reg):
+class REG_VOL_PB (Reg):
     '''Volume for playback.'''
     pass
 
 @dataclass
-class VOL_SOUND (Reg):
+class REG_VOL_SOUND (Reg):
     '''Volume for synthesizer sound.'''
     pass
 
 @dataclass
-class SOUND (Reg):
+class REG_SOUND (Reg):
     '''Sound effect select.'''
 
     @property
     def val_str (self) -> str:
-        s = sound[(self.val >> 8) && 0xff]
-        n = note [(self.val >> 0) && 0xff]
+        s = sound[(self.val >> 8) & 0xff]
+        n = note [(self.val >> 0) & 0xff]
         ret = repr(s)
         if s.pitch_adjust:
             ret += ', Note=' + n

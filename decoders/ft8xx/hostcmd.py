@@ -63,7 +63,7 @@ class Command (annotation.Command):
 
     @property
     def id_ (self) -> int:
-        return annotation.Id.HOST_COMMAND
+        return annotation.Id.HOSTCMD
 
 @dataclass
 class ACTIVE (Command):

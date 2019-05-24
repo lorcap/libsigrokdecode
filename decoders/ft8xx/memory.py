@@ -20,65 +20,7 @@
 import dataclasses
 from dataclasses import dataclass
 from typing import List
-from . import annotation
-
-class Space:
-    '''Memory space.'''
-    @classmethod
-    def contains (cls, addr: int) -> bool:
-        return cls.begin <= addr <= cls.end
-
-class RAM_G (Space):
-    begin: int = 0x000000
-    end  : int = 0x0fffff
-
-class ROM_FONT (Space):
-    begin: int = 0x1e0000
-    end  : int = 0x2ffffb
-
-class ROM_FONT_ADDR (Space):
-    begin: int = 0x2ffffc
-    end  : int = 0x2fffff
-
-class RAM_DL (Space):
-    begin: int = 0x300000
-    end  : int = 0x301fff
-
-class RAM_REG (Space):
-    begin: int = 0x302000
-    end  : int = 0x302fff
-
-class RAM_CMD (Space):
-    begin: int = 0x308000
-    end  : int = 0x308fff
-
-class RAM_ERR_REPORT (Space):
-    begin: int = 0x309800
-    end  : int = 0x3098ff
-
-class FLASH (Space):
-    begin: int = 0x800000
-    end  : int = 0x800000 + 256*2**20 - 1
-
-def space (addr: int) -> str:
-    if   RAM_G         .contains(addr): return 'RAM_G'
-    elif ROM_FONT      .contains(addr): return 'ROM_FONT'
-    elif ROM_FONT_ADDR .contains(addr): return 'ROM_FONT_ADDR'
-    elif RAM_DL        .contains(addr): return 'RAM_DL'
-    elif RAM_REG       .contains(addr): return 'RAM_REG'
-    elif RAM_CMD       .contains(addr): return 'RAM_CMD'
-    elif RAM_ERR_REPORT.contains(addr): return 'RAM_ERR_REPORT'
-    elif FLASH         .contains(addr): return 'FLASH'
-    else                              : return None
-
-def add (addr: int, offset: int) -> int:
-    '''Advance in memory.'''
-    if   space(addr) == 'RAM_CMD':
-        return (self.val + offset) & 0x308fff
-    elif addr == 0x302578: # REG_CMDB_WRITE
-        return addr
-    else:
-        return addr + offset
+from . import annotation, memmap
 
 @dataclass
 class HostRead (annotation.Annotation):
@@ -143,7 +85,7 @@ class Address (annotation.Annotation):
 
     @property
     def addr_str (self):
-        s = space(self.addr)
+        s = memmap.space(self.addr)
         return s if s else '(unknown space)'
 
     @property

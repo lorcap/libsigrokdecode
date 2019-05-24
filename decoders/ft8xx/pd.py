@@ -18,7 +18,7 @@
 ##
 
 import sigrokdecode as srd
-from . import annotation, displist_cmd, host_cmd, memory, warning
+from . import annotation, displist, hostcmd, memmap, memory, ramreg, warning
 
 class Int:
     '''Integer juggler.'''
@@ -89,8 +89,8 @@ class Fsm:
 
         if transaction_type == 0x00 and not host_cmd_active:
             # Host Memory Read
-            self._addr = self.read_addr()
-            self.out = memory.HostRead(*self._addr)
+            addr = self.read_addr()
+            self.out = memory.HostRead(*addr)
 
             if len(self.val) == 4:
                 dummy = Int(self.ss[-1], self.es[-1], self.val[-1:])
@@ -103,10 +103,11 @@ class Fsm:
             self.out = memory.Dummy(*dummy)
 
             try:
+                self._addr = addr.val
                 yield from self.decode_memory('miso')
             except GeneratorExit:
-                self.out = memory.Transaction(
-                        transaction_ss, self.es[-1],
+                self.out = memory.ReadTransaction(
+                        addr.ss, self.es[-1],
                         self.miso_size, self.mosi_size)
                 raise
 
@@ -129,9 +130,9 @@ class Fsm:
             byte1 = Int(self.ss[0], self.es[0], self.val[0:1])
             byte2 = Int(self.ss[1], self.es[1], self.val[1:2])
             byte3 = Int(self.ss[2], self.es[2], self.val[2:3])
-            self.decode_host_command(byte1, byte2, byte3)
+            self.decode_hostcmd(byte1, byte2, byte3)
 
-            self.out = host_cmd.Transaction(
+            self.out = hostcmd.Transaction(
                     self.ss[0], self.es[-1],
                     self.miso_size, self.mosi_size)
 
@@ -154,15 +155,16 @@ class Fsm:
             try:
                 u32 = yield from self.read_uint32(line)
                 self.out = memory.Address(u32.ss, u32.es, self._addr, line)
-                ram = memory.space(self._addr)
+                ram = memmap.space(self._addr)
                 if   ram == 'RAM_DL':
-                    cmd = self.decode_dl_command(u32)
+                    cmd = self.decode_displist(u32)
+                elif ram == 'RAM_REG':
+                    cmd = self.decode_ramreg(u32)
                 elif ram == 'RAM_CMD':
-                    cmd = self.decode_dl_command(u32)\
+                    cmd = self.decode_displist(u32)\
                         or (yield from self.decode_coproc_command(u32))
                 else:
-                    cmd = False
-                    continue
+                    cmd = None
                 self.out = cmd
             except GeneratorExit:
                 self.out = warning.TruncatedCommand(self.ss[0], self.es[-1])
@@ -228,30 +230,30 @@ class Fsm:
 
     @out.setter
     def out (self, out):
-        if (out == None):
+        if not out:
             return
         self._out.append(out)
 
     #########################################################################
 
-    def decode_host_command (self, byte1: Int, byte2: Int, byte3: Int) -> None:
+    def decode_hostcmd (self, byte1: Int, byte2: Int, byte3: Int) -> None:
         '''Decode Host Commands.'''
 
         #-- Power Modes ----------------------------------------------------#
         if   byte1.val == 0x00:
-            cmd = host_cmd.ACTIVE(*byte1)
+            cmd = hostcmd.ACTIVE(*byte1)
 
         elif byte1.val == 0x41:
-            cmd = host_cmd.STANDBY(*byte1)
+            cmd = hostcmd.STANDBY(*byte1)
 
         elif byte1.val == 0x42:
-            cmd = host_cmd.SLEEP(*byte1)
+            cmd = hostcmd.SLEEP(*byte1)
 
         elif byte1.val == 0x43 or byte1.val == 0x50:
-            cmd = host_cmd.PWRDOWN(*byte1)
+            cmd = hostcmd.PWRDOWN(*byte1)
 
         elif byte1.val == 0x49:
-            cmd = host_cmd.PD_ROMS(*byte1, MAIN    =byte2[7],
+            cmd = hostcmd.PD_ROMS(*byte1, MAIN    =byte2[7],
                                            RCOSATAN=byte2[6],
                                            SAMPLE  =byte2[5],
                                            JABOOT  =byte2[4],
@@ -259,32 +261,32 @@ class Fsm:
 
         #-- Clock and Reset ------------------------------------------------#
         elif byte1.val == 0x44:
-            cmd = host_cmd.CLKEXT(*byte1)
+            cmd = hostcmd.CLKEXT(*byte1)
 
         elif byte1.val == 0x48:
-            cmd = host_cmd.CLKINT(*byte1)
+            cmd = hostcmd.CLKINT(*byte1)
 
         elif byte1.val == 0x61 or byte1.val == 0x62:
-            cmd = host_cmd.CLKSEL(*byte1, pll=byte2[7:6], clock=byte2[5:0])
+            cmd = hostcmd.CLKSEL(*byte1, pll=byte2[7:6], clock=byte2[5:0])
 
         elif byte1.val == 0x68:
-            cmd = host_cmd.RST_PULSE(*byte1)
+            cmd = hostcmd.RST_PULSE(*byte1)
 
         #-- Configuration --------------------------------------------------#
         elif byte1.val == 0x70:
-            cmd = host_cmd.PINDRIVE(*byte1, pin=byte2[7:2], strength=byte2[1:0])
+            cmd = hostcmd.PINDRIVE(*byte1, pin=byte2[7:2], strength=byte2[1:0])
 
         elif byte1.val == 0x71:
-            cmd = host_cmd.PIN_PD_STATE(*byte1, pin=byte2[7:2], setting=byte2[1:0])
+            cmd = hostcmd.PIN_PD_STATE(*byte1, pin=byte2[7:2], setting=byte2[1:0])
 
         #-------------------------------------------------------------------#
         else:
             cmd = None
             self.out = warning.UnknownCommand(*byte1)
 
-        self.out = host_cmd.Byte1(*byte1)
-        self.out = host_cmd.Byte2(*byte2)
-        self.out = host_cmd.Byte3(*byte3)
+        self.out = hostcmd.Byte1(*byte1)
+        self.out = hostcmd.Byte2(*byte2)
+        self.out = hostcmd.Byte3(*byte3)
 
         if not cmd or not cmd.has_parameters():
             if byte2.val != 0:
@@ -301,7 +303,25 @@ class Fsm:
 
     #########################################################################
 
-    def decode_dl_command (self, u32: Int):
+    def decode_ramreg (self, u32: Int):
+        '''Decode RAM Registers.'''
+        offset = self._addr - memmap.RAM_REG.begin
+
+        if   offset == 0x000:
+            reg = ramreg.REG_ID(*u32)
+        elif offset == 0x004:
+            reg = ramreg.REG_FRAMES(*u32)
+        elif offset == 0x008:
+            reg = ramreg.REG_CLOCK(*u32)
+        else:
+            reg = warning.UnknownRegister(*u32, self._addr)
+
+        self._addr = memmap.add(self._addr, 4)
+        return reg
+
+    #########################################################################
+
+    def decode_displist (self, u32: Int):
         '''Decode Display List commands.'''
         msb = u32[31:24]
 
@@ -311,134 +331,134 @@ class Fsm:
 
         #-- Setting Graphics State -----------------------------------------#
         elif msb == 0x09:
-            cmd = displist_cmd.ALPHA_FUNC(*u32, func=u32[10:8], ref=u32[7:0])
+            cmd = displist.ALPHA_FUNC(*u32, func=u32[10:8], ref=u32[7:0])
         elif msb == 0x2e:
-            cmd = displist_cmd.BITMAP_EXT_FORMAT(*u32, format=u32[15:0])
+            cmd = displist.BITMAP_EXT_FORMAT(*u32, format=u32[15:0])
         elif msb == 0x05:
-            cmd = displist_cmd.BITMAP_HANDLE(*u32, handle=u32[4:0])
+            cmd = displist.BITMAP_HANDLE(*u32, handle=u32[4:0])
         elif msb == 0x07:
-            cmd = displist_cmd.BITMAP_LAYOUT(*u32, format=u32[23:19], linestride=u32[18:9], height=u32[8:0])
+            cmd = displist.BITMAP_LAYOUT(*u32, format=u32[23:19], linestride=u32[18:9], height=u32[8:0])
         elif msb == 0x28:
-            cmd = displist_cmd.BITMAP_LAYOUT_H(*u32, linestride=u32[3:2], height=u32[1:0])
+            cmd = displist.BITMAP_LAYOUT_H(*u32, linestride=u32[3:2], height=u32[1:0])
         elif msb == 0x08:
-            cmd = displist_cmd.BITMAP_SIZE(*u32, filter=u32[20], wrapx=u32[19], wrapy=u32[18], width=u32[17:9], height=u32[8:0])
+            cmd = displist.BITMAP_SIZE(*u32, filter=u32[20], wrapx=u32[19], wrapy=u32[18], width=u32[17:9], height=u32[8:0])
         elif msb == 0x29:
-            cmd = displist_cmd.BITMAP_SIZE_H(*u32, width=u32[3:2], height=u32[1:0])
+            cmd = displist.BITMAP_SIZE_H(*u32, width=u32[3:2], height=u32[1:0])
         elif msb == 0x01:
-            cmd = displist_cmd.BITMAP_SOURCE(*u32, addr=u32[23:0])
+            cmd = displist.BITMAP_SOURCE(*u32, addr=u32[23:0])
         elif msb == 0x2f:
-            cmd = displist_cmd.BITMAP_SWIZZLE(*u32, r=u32[11:9], g=u32[8:6], b=u32[5:3], a=u32[2:0])
+            cmd = displist.BITMAP_SWIZZLE(*u32, r=u32[11:9], g=u32[8:6], b=u32[5:3], a=u32[2:0])
         elif msb == 0x15:
-            cmd = displist_cmd.BITMAP_TRANSFORM_A(*u32, p=u32[17], v=u32[16:0])
+            cmd = displist.BITMAP_TRANSFORM_A(*u32, p=u32[17], v=u32[16:0])
         elif msb == 0x16:
-            cmd = displist_cmd.BITMAP_TRANSFORM_B(*u32, p=u32[17], v=u32[16:0])
+            cmd = displist.BITMAP_TRANSFORM_B(*u32, p=u32[17], v=u32[16:0])
         elif msb == 0x17:
-            cmd = displist_cmd.BITMAP_TRANSFORM_C(*u32, c=u32[23:0])
+            cmd = displist.BITMAP_TRANSFORM_C(*u32, c=u32[23:0])
         elif msb == 0x18:
-            cmd = displist_cmd.BITMAP_TRANSFORM_D(*u32, p=u32[17], v=u32[16:0])
+            cmd = displist.BITMAP_TRANSFORM_D(*u32, p=u32[17], v=u32[16:0])
         elif msb == 0x19:
-            cmd = displist_cmd.BITMAP_TRANSFORM_E(*u32, p=u32[17], v=u32[16:0])
+            cmd = displist.BITMAP_TRANSFORM_E(*u32, p=u32[17], v=u32[16:0])
         elif msb == 0x1a:
-            cmd = displist_cmd.BITMAP_TRANSFORM_F(*u32, f=u32[23:0])
+            cmd = displist.BITMAP_TRANSFORM_F(*u32, f=u32[23:0])
         elif msb == 0x0b:
-            cmd = displist_cmd.BLEND_FUNC(*u32, src=u32[5:4], dst=u32[2:0])
+            cmd = displist.BLEND_FUNC(*u32, src=u32[5:4], dst=u32[2:0])
         elif msb == 0x06:
-            cmd = displist_cmd.CELL(*u32, cell=u32[6:0])
+            cmd = displist.CELL(*u32, cell=u32[6:0])
         elif msb == 0x26:
-            cmd = displist_cmd.CLEAR(*u32, c=u32[2], s=u32[1], t=u32[0])
+            cmd = displist.CLEAR(*u32, c=u32[2], s=u32[1], t=u32[0])
         elif msb == 0x0f:
-            cmd = displist_cmd.CLEAR_COLOR_A(*u32, alpha=u32[7:0])
+            cmd = displist.CLEAR_COLOR_A(*u32, alpha=u32[7:0])
         elif msb == 0x02:
-            cmd = displist_cmd.CLEAR_COLOR_RGB(*u32, red=u32[23:16], blue=u32[15:8], green=u32[7:0])
+            cmd = displist.CLEAR_COLOR_RGB(*u32, red=u32[23:16], blue=u32[15:8], green=u32[7:0])
         elif msb == 0x11:
-            cmd = displist_cmd.CLEAR_STENCIL(*u32, s=u32[7:0])
+            cmd = displist.CLEAR_STENCIL(*u32, s=u32[7:0])
         elif msb == 0x12:
-            cmd = displist_cmd.CLEAR_TAG(*u32, t=u32[7:0])
+            cmd = displist.CLEAR_TAG(*u32, t=u32[7:0])
         elif msb == 0x10:
-            cmd = displist_cmd.COLOR_A(*u32, alpha=u32[4:0])
+            cmd = displist.COLOR_A(*u32, alpha=u32[4:0])
         elif msb == 0x20:
-            cmd = displist_cmd.COLOR_MASK(*u32, r=u32[3], g=u32[2], b=u32[1], a=u32[0])
+            cmd = displist.COLOR_MASK(*u32, r=u32[3], g=u32[2], b=u32[1], a=u32[0])
         elif msb == 0x04:
-            cmd = displist_cmd.COLOR_RGB(*u32, u32[23:16], u32[15:8], u32[7:0])
+            cmd = displist.COLOR_RGB(*u32, u32[23:16], u32[15:8], u32[7:0])
         elif msb == 0x0e:
-            cmd = displist_cmd.LINE_WIDTH(*u32, width=u32[11:0])
+            cmd = displist.LINE_WIDTH(*u32, width=u32[11:0])
         elif msb == 0x2a:
-            cmd = displist_cmd.PALETTE_SOURCE(*u32, addr=u32[21:0])
+            cmd = displist.PALETTE_SOURCE(*u32, addr=u32[21:0])
         elif msb == 0x0d:
-            cmd = displist_cmd.POINT_SIZE(*u32, size=u32[12:0])
+            cmd = displist.POINT_SIZE(*u32, size=u32[12:0])
         elif msb == 0x23:
-            cmd = displist_cmd.RESTORE_CONTEXT(*u32)
+            cmd = displist.RESTORE_CONTEXT(*u32)
             if self._context:
                 self._context -= 1
             else:
                 self.out = warning.Message(u32.ss, u32.es, 'context underflow')
         elif msb == 0x22:
-            cmd = displist_cmd.SAVE_CONTEXT(*u32)
+            cmd = displist.SAVE_CONTEXT(*u32)
             if self._context < 4:
                 self._context += 1
             else:
                 self.out = warning.Message(u32.ss, u32.es, 'context overflow')
         elif msb == 0x1c:
-            cmd = displist_cmd.SCISSOR_SIZE(*u32, width=u32[23:12], height=u32[11:0],
+            cmd = displist.SCISSOR_SIZE(*u32, width=u32[23:12], height=u32[11:0],
                                             FT80x_width=u32[19:10], FT80x_height=u32[9:0])
         elif msb == 0x1b:
-            cmd = displist_cmd.SCISSOR_XY(*u32, x=u32[21:11], y=u32[10:0],
+            cmd = displist.SCISSOR_XY(*u32, x=u32[21:11], y=u32[10:0],
                                           FT80x_x=u32[17:9], FT80x_y=u32[8:0])
         elif msb == 0x0a:
-            cmd = displist_cmd.STENCIL_FUNC(*u32, func=u32[19:16], ref=u32[15:8], mask=u32[7:0])
+            cmd = displist.STENCIL_FUNC(*u32, func=u32[19:16], ref=u32[15:8], mask=u32[7:0])
         elif msb == 0x13:
-            cmd = displist_cmd.STENCIL_MASK(*u32, mask=u32[7:0])
+            cmd = displist.STENCIL_MASK(*u32, mask=u32[7:0])
         elif msb == 0x0c:
-            cmd = displist_cmd.STENCIL_OP(*u32, sfail=u32[5:3], spass=u32[2:0])
+            cmd = displist.STENCIL_OP(*u32, sfail=u32[5:3], spass=u32[2:0])
         elif msb == 0x03:
-            cmd = displist_cmd.TAG(*u32, s=u32[7:0])
+            cmd = displist.TAG(*u32, s=u32[7:0])
         elif msb == 0x14:
-            cmd = displist_cmd.TAG_MASK(*u32, mask=u32[0])
+            cmd = displist.TAG_MASK(*u32, mask=u32[0])
         elif msb == 0x27:
-            cmd = displist_cmd.VERTEX_FORMAT(*u32, frac=u32[2:0])
+            cmd = displist.VERTEX_FORMAT(*u32, frac=u32[2:0])
         elif msb == 0x2b:
-            cmd = displist_cmd.VERTEX_TRANSLATE_X(*u32, x=u32[16:0])
+            cmd = displist.VERTEX_TRANSLATE_X(*u32, x=u32[16:0])
         elif msb == 0x2c:
-            cmd = displist_cmd.VERTEX_TRANSLATE_Y(*u32, y=u32[16:0])
+            cmd = displist.VERTEX_TRANSLATE_Y(*u32, y=u32[16:0])
 
         #-- Drawing Actions ------------------------------------------------#
         elif msb == 0x1f:
-            cmd = displist_cmd.BEGIN(*u32, prim=u32[3:0])
+            cmd = displist.BEGIN(*u32, prim=u32[3:0])
         elif msb == 0x21:
-            cmd = displist_cmd.END(*u32)
+            cmd = displist.END(*u32)
         elif msb == 0x01:
-            cmd = displist_cmd.VERTEX2F(*u32, x=u32[29:15], y=u32[14:0])
+            cmd = displist.VERTEX2F(*u32, x=u32[29:15], y=u32[14:0])
         elif msb == 0x02:
-            cmd = displist_cmd.VERTEX2II(*u32, x=u32[29:21], y=u32[20:12], handle=u32[11:7], cell=u32[6:0])
+            cmd = displist.VERTEX2II(*u32, x=u32[29:21], y=u32[20:12], handle=u32[11:7], cell=u32[6:0])
 
         #-- Execution Control ----------------------------------------------#
         elif msb == 0x2d:
-            cmd = displist_cmd.NOP(*u32)
+            cmd = displist.NOP(*u32)
         elif msb == 0x1e:
-            cmd = displist_cmd.JUMP(*u32, dest=u32[15:0])
+            cmd = displist.JUMP(*u32, dest=u32[15:0])
         elif msb == 0x25:
-            cmd = displist_cmd.MACRO(*u32, m=u32[1])
+            cmd = displist.MACRO(*u32, m=u32[1])
         elif msb == 0x1d:
-            cmd = displist_cmd.CALL(*u32, dest=u32[15:0])
+            cmd = displist.CALL(*u32, dest=u32[15:0])
             if cmd.dest_is_valid():
                 if self._stack < 4:
                     self._stack += 1
                 else:
                     self.out = warning.Message(u32.ss, u32.es, 'stack overflow')
         elif msb == 0x24:
-            cmd = displist_cmd.RETURN(*u32)
+            cmd = displist.RETURN(*u32)
             if self._stack:
                 self._stack -= 1
             else:
                 self.out = warning.Message(u32.ss, u32.es, 'stack underflow')
         elif msb == 0x00:
-            cmd = displist_cmd.DISPLAY(*u32)
+            cmd = displist.DISPLAY(*u32)
 
         #-------------------------------------------------------------------#
         else:
             cmd = warning.UnknownCommand(*u32)
 
-        self._addr = memory.add(self._addr, 4)
+        self._addr = memmap.add(self._addr, 4)
         return cmd
 
     #########################################################################
@@ -481,6 +501,7 @@ class Decoder (srd.Decoder):
         ('host_memory_read' , 'HostMemoryRead' ),
         ('host_memory_write', 'HostMemoryWrite'),
         ('parameter'        , 'Parameter'      ),
+        ('ram_register'     , 'RamRegister'    ),
         ('read_address'     , 'ReadAddress'    ),
         ('read_command'     , 'ReadCommand'    ),
         ('read_data'        , 'ReadData'       ),
@@ -492,10 +513,11 @@ class Decoder (srd.Decoder):
     )
     annotation_rows = (
         ('transaction', 'Transaction', (annotation.Id.TRANSACTION      , )),
-        ('command'    , 'Command'    , (annotation.Id.DISPLAY_LIST     ,
-                                        annotation.Id.HOST_COMMAND     ,
+        ('command'    , 'Command'    , (annotation.Id.DISPLIST         ,
+                                        annotation.Id.HOSTCMD          ,
                                         annotation.Id.HOST_MEMORY_READ ,
-                                        annotation.Id.HOST_MEMORY_WRITE, )),
+                                        annotation.Id.HOST_MEMORY_WRITE,
+                                        annotation.Id.RAMREG           , )),
         ('write'      , 'Write'      , (annotation.Id.COMMAND          ,
                                         annotation.Id.PARAMETER        ,
                                         annotation.Id.WRITE_ADDRESS    ,

@@ -19,7 +19,7 @@
 
 import dataclasses
 from dataclasses import dataclass
-from . import annotation, memory
+from . import annotation, memmap
 
 @dataclass
 class Command (annotation.Command):
@@ -27,7 +27,7 @@ class Command (annotation.Command):
 
     @property
     def id_ (self) -> int:
-        return annotation.Id.DISPLAY_LIST
+        return annotation.Id.DISPLIST
 
     def _px_str (self, val: str) -> str:
         '''Add pixel suffix, consistently.'''
@@ -48,7 +48,7 @@ class Branch ():
     @property
     def dest_str (self) -> str:
         if self.dest_is_valid():
-            return self._par_str(memory.RAM_DL.begin + self.dest)
+            return self._par_str(memmap.RAM_DL.begin + self.dest)
         else:
             return ''
 
@@ -145,7 +145,7 @@ class BITMAP_HANDLE (Command):
 
 @dataclass
 class BITMAP_LAYOUT (Format, Command):
-    '''Specify the source bitmap memory format and layout for the current handle.'''
+    '''Specify the source bitmap memmap format and layout for the current handle.'''
     format: int     # bitmap pixel format
     linestride: int # bitmap line strides, in bytes
     height: int     # bitmap height, in lines
@@ -185,13 +185,13 @@ class BITMAP_SIZE_H (Command):
 
 @dataclass
 class BITMAP_SOURCE (Command):
-    '''Specify the source address of bitmap data in BT815/6 graphics memory
-       RAM_G or flash memory.'''
+    '''Specify the source address of bitmap data in BT815/6 graphics memmap
+       RAM_G or flash memmap.'''
     addr: int
 
     @property
     def addr_str (self) -> str:
-        s = memory.space(self.addr)
+        s = memmap.space(self.addr)
         if self.addr & 0x800000:
             return '{0}@{1}'.format(4*(self.addr - 0x800000), s)
         else:

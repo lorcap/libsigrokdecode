@@ -75,10 +75,20 @@ class TruncatedCommand (Warning):
 
 @dataclass
 class UnknownCommand (Warning):
-    '''Warning for invalid parameter value.'''
+    '''Warning for command not known.'''
     val: int    # raw value
 
     @property
     def strings_ (self) -> List[str]:
         return [f'unknown command: {self._par_str(self.val)}']
+
+@dataclass
+class UnknownRegister (Warning):
+    '''Warning for register not known.'''
+    val: int    # raw value
+    addr: int   # register address
+
+    @property
+    def strings_ (self) -> List[str]:
+        return [f'unknown register at {self._par_str(self.addr)}']
 
