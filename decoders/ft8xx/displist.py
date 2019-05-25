@@ -24,6 +24,7 @@ from . import annotation, memmap
 @dataclass
 class Command (annotation.Command):
     '''Command base for all display list commands.'''
+    val_: int   # raw value
 
     @property
     def id_ (self) -> int:

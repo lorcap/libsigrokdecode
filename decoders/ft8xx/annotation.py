@@ -24,6 +24,7 @@ from typing import List
 class Id:
     '''Annotation IDs.'''
     COMMAND          ,\
+    COPROC           ,\
     DISPLIST         ,\
     HOSTCMD          ,\
     HOST_MEMORY_READ ,\
@@ -37,7 +38,7 @@ class Id:
     WRITE_ADDRESS    ,\
     WRITE_DATA       ,\
     WRITE_DUMMY      ,\
-        = range(14)
+        = range(15)
 
 @dataclass
 class Annotation:
@@ -60,8 +61,6 @@ class Annotation:
     def _par_str (self, val: int, name: str='', desc: str='') -> str:
         '''Uniform representation of parameter name and value.'''
         int_str = self._int_str(val)
-        if name == 'val_':
-            name = ''
         if name and desc:
             return f'{name}={int_str}: {desc}'
         elif name and not desc:
@@ -81,7 +80,6 @@ from . import warning
 @dataclass
 class Command (Annotation):
     '''Annotation common to all command types.'''
-    val_: int   # raw value
 
     def __post_init__ (self) -> None:
         '''Dataclass' post-init processing.'''
@@ -93,22 +91,28 @@ class Command (Annotation):
         long = list()
         mid  = list()
 
-        for name in self._field_names():
-            val = getattr(self, name)
+        for field_name in self._field_names():
+            name = field_name.rstrip('_')
+            val = getattr(self, field_name)
+            if isinstance(val, annotation.Annotation):
+                # coproc
+                val = val.val
+
             try:
-                # field is represented by '<name>_str'
-                val_str = getattr(self, name.rstrip('_') + '_str')
+                # field is represented by '<field_name>_str'
+                val_str = getattr(self, name + '_str')
                 if not val_str:
                     self._warning = warning.InvalidParameterValue(self.ss_, self.es_, val, name)
             except AttributeError:
-                # '<name>_str' doesn't exist
+                # '<field_name>_str' doesn't exist
                 val_str = ''
 
+            name_par = name if not field_name.endswith('_') else ''
             if val_str:
-                long.append(self._par_str(val, name, val_str))
+                long.append(self._par_str(val, name_par, val_str))
                 mid .append(val_str)
             else:
-                long.append(self._par_str(val, name))
+                long.append(self._par_str(val, name_par))
                 mid .append(self._par_str(val))
 
         if mid:

@@ -18,7 +18,7 @@
 ##
 
 import sigrokdecode as srd
-from . import annotation, displist, hostcmd, memmap, memory, ramreg, warning
+from . import annotation, coproc, displist, hostcmd, memmap, memory, ramreg, warning
 
 class Int:
     '''Integer juggler.'''
@@ -164,7 +164,7 @@ class Fsm:
                     cmd = self.decode_ramreg(u32)
                 elif ram == 'RAM_CMD':
                     cmd = self.decode_displist(u32)\
-                        or (yield from self.decode_coproc_command(u32))
+                        or (yield from self.decode_coproc(u32, line))
                 else:
                     cmd = None
                 self.out = cmd
@@ -486,28 +486,43 @@ class Fsm:
 
     #########################################################################
 
-#    def decode_coproc_command (self, u32: Int):
-#        '''Decode Co-Processor Engine commands.'''
-#        if u32[31:24] != 0xff:
-#            return None
-#
-#        #-- Display List Management ----------------------------------------#
-#        elif u32.val == 0xffffff00:
-#            cmd = coproc.CMD_DLSTART(*u32)
-#
-#        elif u32.val == 0xffffff01:
-#            cmd = coproc.CMD_SWAP(*u32)
-#
-#        #-- Graphics Objects Drawing ---------------------------------------#
-#        #-- Memory Operations ----------------------------------------------#
-#        #-- Image Data Loading ---------------------------------------------#
-#        #-- Bitmap Transform Matrix Setting --------------------------------#
-#        #-- Other Commands -------------------------------------------------#
-#        #-------------------------------------------------------------------#
-#        else:
-#            return None
-#
-#        return cmd
+    def decode_coproc (self, u32: Int, line):
+        '''Decode Co-Processor Engine commands.'''
+        if u32[31:24] != 0xff:
+            return None
+
+        #-- Commands to begin and finish the display list ------------------#
+        elif u32.val == 0xffffff00:
+            cmd = coproc.CMD_DLSTART(*u32)
+
+        elif u32.val == 0xffffff01:
+            cmd = coproc.CMD_SWAP(*u32)
+
+        #-- Commands to draw graphics objects ------------------------------#
+        elif u32.val == 0xffffff0c:
+            x       = yield from self.read_int16 (line)
+            y       = yield from self.read_int16 (line)
+            font    = yield from self.read_int16 (line)
+            options = yield from self.read_uint16(line)
+            s       = yield from self.read_string(line)
+            cmd = coproc.CMD_TEXT(*u32, x=x, y=y, font=font, option=options, s=s)
+
+        #-- Commands to operate on memory ----------------------------------#
+        #-- Commands for loading data into RAM_G ---------------------------#
+        #-- Commands for setting the bitmap transform matrix ---------------#
+        #-- Commands for flash operation -----------------------------------#
+        #-- Commands for video playback ------------------------------------#
+        #-- Commands for animation -----------------------------------------#
+        #-- Other commands -------------------------------------------------#
+        elif u32.val == 0xffffff02:
+            ms = yield from self.read_uint32(line)
+            cmd = coproc.CMD_INTERRUPT(*u32, ms=ms)
+
+        #-------------------------------------------------------------------#
+        else:
+            cmd = warning.UnknownCommand(*u32)
+
+        return cmd
 
 class Decoder (srd.Decoder):
     api_version = 3
@@ -520,6 +535,7 @@ class Decoder (srd.Decoder):
     outputs = ['ft8xx']
     annotations = (
         ('command'          , 'Command'        ),
+        ('coproc'           , 'CoProc'         ),
         ('host_command'     , 'HostCommand'    ),
         ('host_memory_read' , 'HostMemoryRead' ),
         ('host_memory_write', 'HostMemoryWrite'),
@@ -536,7 +552,8 @@ class Decoder (srd.Decoder):
     )
     annotation_rows = (
         ('transaction', 'Transaction', (annotation.Id.TRANSACTION      , )),
-        ('command'    , 'Command'    , (annotation.Id.DISPLIST         ,
+        ('command'    , 'Command'    , (annotation.Id.COPROC           ,
+                                        annotation.Id.DISPLIST         ,
                                         annotation.Id.HOSTCMD          ,
                                         annotation.Id.HOST_MEMORY_READ ,
                                         annotation.Id.HOST_MEMORY_WRITE,

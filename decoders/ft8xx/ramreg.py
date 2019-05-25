@@ -24,6 +24,7 @@ from . import annotation, warning
 @dataclass
 class Reg (annotation.Command):
     '''Base class for all register annotations.'''
+    val_: int   # raw value
 
     @property
     def val (self):

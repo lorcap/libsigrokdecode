@@ -60,6 +60,7 @@ Byte3 = Byte2
 @dataclass
 class Command (annotation.Command):
     '''Base class for host commands.'''
+    val_: int   # raw value
 
     @property
     def id_ (self) -> int:
