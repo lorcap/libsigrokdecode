@@ -67,9 +67,9 @@ def space (addr: int) -> str:
     else                              : return None
 
 def add (addr: int, offset: int) -> int:
-    '''Advance in memory.'''
+    '''Move forward in memory.'''
     if   space(addr) == 'RAM_CMD':
-        return (self.val + offset) & 0x308fff
+        return (addr + offset) & 0x308fff
     elif addr == 0x302578: # REG_CMDB_WRITE
         return addr
     else:

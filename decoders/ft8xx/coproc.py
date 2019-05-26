@@ -17,9 +17,32 @@
 ## along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-import dataclasses
+from typing import List
 from dataclasses import dataclass
 from . import annotation
+
+OPT_3D          =     0 # 3D effect
+OPT_RGB565      =     0 # decode the source image to RGB565 format
+OPT_MONO        =     1 # decode the source JPEG image to L8 format, i.e., monochrome
+OPT_NODL        =     2 # no display list commands generated
+OPT_FLAT        =   256 # no 3D effect
+OPT_SIGNED      =   256 # the number is treated as a 32 bit signed integer
+OPT_CENTERX     =   512 # horizontally-centred style
+OPT_CENTERY     =  1024 # vertically centred style
+OPT_CENTER      =  1536 # horizontally and vertically centred style
+OPT_RIGHTX      =  2048 # right justified style
+OPT_NOBACK      =  4096 # no background drawn
+OPT_FLASH       =    64 # fetch the data from flash memory
+OPT_FORMAT      =  4096 # flag of string formatting
+OPT_NOTICKS     =  8192 # no ticks
+OPT_NOHM        = 16384 # no hour and minute hands
+OPT_NOPOINTER   = 16384 # no pointer
+OPT_NOSECS      = 32768 # no second hands
+OPT_NOHANDS     = 49152 # no hands
+OPT_NOTEAR      =     4 # synchronize video updates to the display blanking interval, avoiding horizontal “tearing” artefacts
+OPT_FULLSCREEN  =     8 # zoom the video so that it fills as much of the screen as possible
+OPT_MEDIAFIFO   =    16 # source video data from the defined media FIFO
+OPT_SOUND       =    32 # decode the audio data
 
 @dataclass
 class Command (annotation.Command):
@@ -30,6 +53,28 @@ class Command (annotation.Command):
     def id_ (self) -> int:
         return annotation.Id.COPROC
 
+    @property
+    def strings_ (self) -> List[str]:
+        '''Generate annotation strings from dataclass' fields.'''
+        str_list = list()
+
+        for par in self.parameters():
+            try:
+                # parameter is represented by '<par>_str'
+                val_str = getattr(self, par + '_str')
+            except AttributeError:
+                # '<par>_str' doesn't exist
+                val_str = str(getattr(self, par).val)
+            str_list.append(f'{par}={val_str}')
+
+        par_str = '; '.join(str_list)
+        return [f'{self.name_}({par_str})']
+
+    @property
+    def options_str (self) -> str:
+        '''Options.'''
+        return 'Fix me!'
+
 @dataclass
 class Parameter (annotation.Annotation):
     '''Parameter of type uint32_t.'''
@@ -37,17 +82,32 @@ class Parameter (annotation.Annotation):
 
     @property
     def id_ (self) -> int:
-        return annotation.Id.COPROC
+        return annotation.Id.PARAMETER
+
+    @property
+    def strings_ (self) -> List[str]:
+        return [self.name_.lower() + '_t: ' + self._int_str(self.val)]
 
 @dataclass
 class Int16 (Parameter):
-    '''Parameter of type int16_t.'''
+    '''Parameter of type `int16_t`.'''
     pass
 
 @dataclass
+class UInt16 (Parameter):
+    '''Parameter of type `uint16_t`.'''
+
+@dataclass
 class UInt32 (Parameter):
-    '''Parameter of type uint32_t.'''
-    pass
+    '''Parameter of type `uint32_t`.'''
+
+@dataclass
+class String (Parameter):
+    '''Parameter of null-terminated `const char*`.'''
+
+    @property
+    def strings_ (self) -> List[str]:
+        return ['const char*: ' + self.val]
 
 # ------------------------------------------------------------------------- #
 
@@ -102,7 +162,7 @@ class CMD_APPEND (Command):
 class CMD_REGREAD (Command):
     '''Read a register value.'''
     ptr    : UInt32 # address of the register to be read
-    result : Uint32 # the register value to be read at `ptr` address
+    result : UInt32 # the register value to be read at `ptr` address
 
 @dataclass
 class CMD_MEMWRITE (Command):
@@ -114,33 +174,33 @@ class CMD_MEMWRITE (Command):
 class CMD_INFLATE (Command):
     '''Decompress data into memory.'''
     ptr    : UInt32 # destination address in RAM_G
-    data
+    data   : int
 
 @dataclass
 class CMD_INFLATE2 (Command):
     '''Decompress data into memory.'''
     ptr    : UInt32 # destination address to put the decompressed data
     options: UInt32 #
-    data
+    data   : int
 
 @dataclass
 class CMD_LOADIMAGE (Command):
     '''Load a JPEG or PNG image.'''
     ptr    : UInt32 # destination address
     options: UInt32 #
-    data
+    data   : int
 
 @dataclass
 class CMD_MEDIAFIFO (Command):
     '''Set up a streaming media FIFO'''
     ptr    : UInt32 # starting address of memory block
-    size: Uint32    # number of bytes in the source memory block
+    size   : UInt32    # number of bytes in the source memory block
 
 @dataclass
 class CMD_PLAYVIDEO (Command):
     '''Video playback'''
     opts   : UInt32 #
-    data
+    data   : int
 
 @dataclass
 class CMD_VIDEOSTART (Command):
@@ -270,7 +330,7 @@ class CMD_PROGRESS (Command):
     h      :  Int16 # height of progress bar, in pixels
     options: UInt16 #
     val    : UInt16 # displayed value of progress bar
-    range  : Uint16 # maximum value
+    range  : UInt16 # maximum value
 
 @dataclass
 class CMD_SCROLLBAR (Command):
@@ -290,7 +350,7 @@ class CMD_SLIDER (Command):
     y      :  Int16 # y-coordinate of slider top-left, in pixels
     w      :  Int16 # width of slider, in pixels
     h      :  Int16 # height of slider, in pixels
-    options:        #
+    options: UInt16 #
     val    : UInt16 # displayed value of slider
     range  : UInt16 # maximum value
 
@@ -310,7 +370,7 @@ class CMD_TOGGLE (Command):
     y      :  Int16 # y-coordinate of top-left of toggle, in pixels
     w      :  Int16 # width of toggle, in pixels
     font   :  Int16 # font to use for text
-    options:        #
+    options: UInt16 #
     state  : UInt16 # state of the toggle
     s      : String # string labels for toggle,UTF-8 encoding
 

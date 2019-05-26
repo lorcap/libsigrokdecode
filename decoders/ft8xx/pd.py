@@ -24,11 +24,11 @@ class Int:
     '''Integer juggler.'''
     __slots__ = ('ss', 'es', 'val', 'size')
 
-    def __init__ (self, ss: int, es: int, bytes, byteorder='little', *, signed=False):
+    def __init__ (self, ss: int, es: int, data: bytes, byteorder='little', *, signed=False):
         self.ss   = ss    # start sample
         self.es   = es    # end sample
-        self.val  = int.from_bytes(bytes, signed=signed, byteorder=byteorder)
-        self.size = len(bytes)
+        self.val  = int.from_bytes(data, signed=signed, byteorder=byteorder)
+        self.size = len(data)
 
     def __iter__ (self):
         '''Allow starred expression.'''
@@ -50,6 +50,22 @@ class Int:
             raise IndexError
 
         return (self.val >> stop) & (2**(start - stop + 1) - 1)
+
+class String:
+    '''String handler.'''
+    __slots__ = ('ss', 'es', 'val', 'size')
+
+    def __init__ (self, ss: int, es: int, data: bytearray):
+        self.ss   = ss    # start sample
+        self.es   = es    # end sample
+        self.val  = data.decode(errors='ignore')
+        self.size = len(data) + 1 # counting '\0', as well
+
+    def __iter__ (self):
+        '''Allow starred expression.'''
+        yield self.ss
+        yield self.es
+        yield self.val
 
 class Fsm:
     '''Decoding finite-state machine implemented as coroutine.'''
@@ -190,18 +206,54 @@ class Fsm:
 
     def read_uint8 (self, line) -> Int:
         '''Read 8-bit unsigned integer.'''
-        return (yield from self.read(line, 1))
+        self.size = 1
+        yield from self.read(line, self.size)
+        return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
+
+    def read_uint16 (self, line) -> Int:
+        '''Read 16-bit unsigned integer.'''
+        self.size = 2
+        yield from self.read(line, self.size)
+        return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
+
+    def read_int16 (self, line) -> Int:
+        '''Read 16-bit signed integer.'''
+        self.size = 2
+        yield from self.read(line, self.size)
+        return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:], signed=True)
 
     def read_uint32 (self, line, *, count=4) -> Int:
         '''Read 32-bit unsigned integer.'''
-        return (yield from self.read(line, count, size=4))
+        self.size = 4
+        yield from self.read(line, count)
+        return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
 
-    def read (self, line, count, byteorder='little', signed=False, size=0) -> Int:
-        '''Read up-to 'count' bytes from MISO/MOSI and make a 'size' byte integer.'''
+    def read_string (self, line) -> String:
+        self.size = 1
+        yield from self.read(line, self.size)
+        ss = self.ss[-1]
+        count = 1
+
+        # read up to '\0'
+        s = bytearray()
+        while self.val[-1]:
+            s.append(self.val[-1])
+            yield from self.read(line, self.size)
+            count += 1
+        es = self.es[-1]
+
+        # ignore the extra bytes up to the next 4-byte boundary
+        while count % 4:
+            yield from self.read(line, self.size)
+            count += 1
+
+        return String(ss, es, s)
+
+    def read (self, line, count) -> None:
+        '''Read up-to 'count' bytes from MISO/MOSI (max: 4).'''
         assert 0 < count <= 4
         assert line in ('miso', 'mosi')
 
-        self.size = size
         self.count = count
 
         for i in range(count):
@@ -221,13 +273,6 @@ class Fsm:
         self.val = self.val[-4:]
         self.ss  = self.ss [-4:]
         self.es  = self.es [-4:]
-
-        if size:
-            assert count <= size <= 4
-        else:
-            size = count
-        return Int(self.ss[-size], self.es[-1], self.val[-size:],
-                   byteorder=byteorder, signed=signed)
 
     def truncated (self) -> bool:
         '''Detect whether not all expected bytes were read.'''
@@ -299,7 +344,7 @@ class Fsm:
         self.out = hostcmd.Byte2(*byte2)
         self.out = hostcmd.Byte3(*byte3)
 
-        if not cmd or not cmd.has_parameters():
+        if not cmd or not cmd.parameters():
             if byte2.val != 0:
                 self.out = warning.Warning(*byte2, 'Byte2 is not 00h')
 
@@ -505,7 +550,12 @@ class Fsm:
             font    = yield from self.read_int16 (line)
             options = yield from self.read_uint16(line)
             s       = yield from self.read_string(line)
-            cmd = coproc.CMD_TEXT(*u32, x=x, y=y, font=font, option=options, s=s)
+            cmd = coproc.CMD_TEXT(*u32,
+                    x      =coproc.Int16 (*x      ),
+                    y      =coproc.Int16 (*y      ),
+                    font   =coproc.Int16 (*font   ),
+                    options=coproc.UInt16(*options),
+                    s      =coproc.String(*s      ))
 
         #-- Commands to operate on memory ----------------------------------#
         #-- Commands for loading data into RAM_G ---------------------------#
@@ -516,12 +566,18 @@ class Fsm:
         #-- Other commands -------------------------------------------------#
         elif u32.val == 0xffffff02:
             ms = yield from self.read_uint32(line)
-            cmd = coproc.CMD_INTERRUPT(*u32, ms=ms)
+            cmd = coproc.CMD_INTERRUPT(*u32,
+                    ms=coproc.UInt32(*ms))
 
         #-------------------------------------------------------------------#
         else:
             cmd = warning.UnknownCommand(*u32)
+            return cmd
 
+        for par in cmd.parameters():
+            self.out = getattr(cmd, par)
+
+        cmd.es_ = self.es[-1]
         return cmd
 
 class Decoder (srd.Decoder):

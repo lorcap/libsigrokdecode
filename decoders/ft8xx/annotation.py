@@ -91,28 +91,24 @@ class Command (Annotation):
         long = list()
         mid  = list()
 
-        for field_name in self._field_names():
-            name = field_name.rstrip('_')
-            val = getattr(self, field_name)
-            if isinstance(val, annotation.Annotation):
-                # coproc
-                val = val.val
-
+        for par in self.parameters():
+            name = par.rstrip('_')
+            val = getattr(self, par)
             try:
-                # field is represented by '<field_name>_str'
+                # parameter is represented by '<par>_str'
                 val_str = getattr(self, name + '_str')
                 if not val_str:
                     self._warning = warning.InvalidParameterValue(self.ss_, self.es_, val, name)
             except AttributeError:
-                # '<field_name>_str' doesn't exist
+                # '<par>_str' doesn't exist
                 val_str = ''
 
-            name_par = name if not field_name.endswith('_') else ''
+            par_name = name if not par.endswith('_') else ''
             if val_str:
-                long.append(self._par_str(val, name_par, val_str))
+                long.append(self._par_str(val, par_name, val_str))
                 mid .append(val_str)
             else:
-                long.append(self._par_str(val, name_par))
+                long.append(self._par_str(val, par_name))
                 mid .append(self._par_str(val))
 
         if mid:
@@ -133,13 +129,8 @@ class Command (Annotation):
         '''Warning annotation, if any.'''
         return self._warning
 
-    def has_parameters (self) -> bool:
-        '''Check wheather command has e or more parameters.'''
-        return bool(self._field_names())
-
-    #--- private ---#
-
-    def _field_names (self) -> List[str]:
+    def parameters (self) -> List[str]:
+        '''Return a list of command's parameters, if any.'''
         return [f.name for f in dataclasses.fields(self)
                 if not f.name.endswith('_')]
 

@@ -34,9 +34,7 @@ class Reg (annotation.Command):
     def id_ (self) -> int:
         return annotation.Id.RAMREG
 
-    #--- private ---#
-
-    def _field_names (self) -> List[str]:
+    def parameters (self) -> List[str]:
         return ['val_']
 
 @dataclass(frozen=True)
