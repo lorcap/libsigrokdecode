@@ -98,6 +98,10 @@ class UInt16 (Parameter):
     '''Parameter of type `uint16_t`.'''
 
 @dataclass
+class Int32 (Parameter):
+    '''Parameter of type `int32_t`.'''
+
+@dataclass
 class UInt32 (Parameter):
     '''Parameter of type `uint32_t`.'''
 
@@ -408,7 +412,7 @@ class CMD_LOADIDENTIY (Command):
     pass
 
 @dataclass
-class CMD_ SETMATRIX(Command):
+class CMD_SETMATRIX (Command):
     '''Write the current matrix to the display list.'''
     pass
 
@@ -552,9 +556,6 @@ class CMD_SNAPSHOT2 (Command):
 
 @dataclass
 class CMD_SETBITMAP (Command):
-
-@dataclass
-class CMD_ (Command):
     '''Set up display list for bitmap.'''
     source : UInt32 # source address for bitmap
     fmt    : UInt16 # bitmap format
