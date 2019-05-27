@@ -388,3 +388,312 @@ class CMD_TEXT (Command):
     options: UInt16 #
     s      : String # text string, UTF-8 encoding
 
+@dataclass
+class CMD_SETBASE (Command):
+    '''Set the base for number output.'''
+    b      : UInt32 # numeric base
+
+@dataclass
+class CMD_NUMBER (Command):
+    '''Draw a number.'''
+    x      :  Int16 # x-coordinate of text base, in pixels
+    y      :  Int16 # y-coordinate of text base, in pixels
+    font   :  Int16 # font to use for text
+    options: UInt16 #
+    n      :  Int32 # the number to display
+
+@dataclass
+class CMD_LOADIDENTIY (Command):
+    '''Set the current matrix to the identity matrix.'''
+    pass
+
+@dataclass
+class CMD_ SETMATRIX(Command):
+    '''Write the current matrix to the display list.'''
+    pass
+
+@dataclass
+class CMD_GETMATRIX (Command):
+    '''Retrieves the current matrix coefficient.'''
+    a      :  Int32 # output parameter; written with matrix coefficient a
+    b      :  Int32 # output parameter; written with matrix coefficient b
+    c      :  Int32 # output parameter; written with matrix coefficient c
+    d      :  Int32 # output parameter; written with matrix coefficient d
+    e      :  Int32 # output parameter; written with matrix coefficient e
+    f      :  Int32 # output parameter; written with matrix coefficient f
+
+@dataclass
+class CMD_GETPTR (Command):
+    '''Get the end memory address of data inflated by CMD_INFLATE.'''
+    result : UInt32 # the end address of decompressed data
+
+@dataclass
+class CMD_GETPROPS (Command):
+    '''Get the image properties decompressed by CMD_LOADIMAGE.'''
+    ptr    : UInt32 # the address of the image in RAM_G
+    width  : UInt32 # the width of the image
+    height : UInt32 # the height of the image
+
+@dataclass
+class CMD_SCALE (Command):
+    '''Apply a scale to the current matrix.'''
+    sx     :  Int32 # x scale factor
+    sy     :  Int32 # y scale factor
+
+@dataclass
+class CMD_ROTATE (Command):
+    '''Apply a rotation to the current matrix.'''
+    a      :  Int32 # clockwise rotation angle
+
+@dataclass
+class CMD_ROTATEAROUND (Command):
+    '''Apply a rotation and scale around a specified coordinate.'''
+    x      :  Int32 # center of rotation/scaling, x-coordinate
+    y      :  Int32 # center of rotation/scaling, x-coordinate
+    a      :  Int32 # clockwise rotation angle
+    s      :  Int32 # scale factor
+
+@dataclass
+class CMD_TRANSLATE (Command):
+    '''Apply a translation to the current matrix.'''
+    tx     :  Int32 # x translate factor
+    ty     :  Int32 # y translate factor
+
+@dataclass
+class CMD_CALIBRATE (Command):
+    '''Execute the touch screen calibration routine.'''
+    result : UInt32 # output parameter; written with 0 on failure of calibration
+
+@dataclass
+class CMD_SETROTATE (Command):
+    '''Rotate the screen.'''
+    r      : UInt32 # same definition as the value in REG_ROTATE
+
+@dataclass
+class CMD_SPINNER (Command):
+    '''Start an animated spinner.'''
+    x      :  Int16 # the X coordinate of top left of spinner
+    y      :  Int16 # the Y coordinate of top left of spinner
+    style  : UInt16 # the style of spinner
+    scale  : UInt16 # the scaling coefficient of spinner
+
+@dataclass
+class CMD_SCREENSAVER (Command):
+    '''Start an animated screensaver.'''
+    pass
+
+@dataclass
+class CMD_SKETCH (Command):
+    '''Start a continuous sketch update.'''
+    x      :  Int16 # x-coordinate of sketch area top-left, in pixels
+    y      :  Int16 # y-coordinate of sketch area top-left, in pixels
+    w      : UInt16 # width of sketch area, in pixels
+    h      : UInt16 # height of sketch area, in pixels
+    ptr    : UInt32 # base address of sketch bitmap
+    format : UInt16 # format of sketch bitmap
+
+@dataclass
+class CMD_STOP (Command):
+    '''Stop any of spinner, screensaver or sketch.'''
+    pass
+
+@dataclass
+class CMD_SETFONT (Command):
+    '''Set up a custom font.'''
+    font   : UInt32 # the bitmap handle
+    ptr    : UInt32 # the metrics block address in RAM_G
+
+@dataclass
+class CMD_SETFONT2 (Command):
+    '''Set up a custom font.'''
+    font     : UInt32 # the bitmap handle
+    ptr      : UInt32 # 32 bit aligned memory address in RAM_G of font metrics block
+    firstchar: UInt32 # the ASCII value of first character in the font
+
+@dataclass
+class CMD_SETSCRATCH (Command):
+    '''Set the scratch bitmap for widget use.'''
+    handle : UInt32 # bitmap handle number
+
+@dataclass
+class CMD_ROMFONT (Command):
+    '''Load a ROM font into bitmap handle.'''
+    font   : UInt32 # bitmap handle number
+    romslot: UInt32 # ROM font number
+
+@dataclass
+class CMD_RESETFONTS (Command):
+    '''Reset ROM fonts to default bitmap handle.'''
+    pass
+
+@dataclass
+class CMD_TRACK (Command):
+    '''Track touches for a graphics object.'''
+    x      :  Int16 # x-coordinate of track area
+    y      :  Int16 # y-coordinate of track area
+    w      :  Int16 # width of track area
+    h      :  Int16 # height of track area
+    tag    :  Int16 # tag of the graphics object to be tracked
+
+@dataclass
+class CMD_SNAPSHOT (Command):
+    '''Take a snapshot of the current screen.'''
+    ptr    : UInt32 # snapshot destination address, in RAM_G
+
+@dataclass
+class CMD_SNAPSHOT2 (Command):
+    '''Take a snapshot of part of the current screen.'''
+    fmt    : UInt32 # output bitmap format
+    ptr    : UInt32 # snapshot destination address, in RAM_G
+    x      :  Int16 # x-coordinate of snapshot area
+    y      :  Int16 # y-coordinate of snapshot area
+    w      :  Int16 # width of snapshot area
+    h      :  Int16 # height of snapshot area
+
+@dataclass
+class CMD_SETBITMAP (Command):
+
+@dataclass
+class CMD_ (Command):
+    '''Set up display list for bitmap.'''
+    source : UInt32 # source address for bitmap
+    fmt    : UInt16 # bitmap format
+    width  : UInt16 # bitmap width, in pixels
+    height : UInt16 # bitmap height, in pixels
+
+@dataclass
+class CMD_LOGO (Command):
+    '''Play Bridgetek logo animation.'''
+    pass
+
+@dataclass
+class CMD_FLASHERASE (Command):
+    '''Erase all of FLASH.'''
+    pass
+
+@dataclass
+class CMD_FLASHWRITE (Command):
+    '''Write data to FLASH.'''
+    ptr    : UInt32 # destination address in flash memory
+    num    : UInt32 # number of bytes to write
+
+@dataclass
+class CMD_FLASHREAD (Command):
+    '''Read data from FLASH to main memory.'''
+    dest   : UInt32 # destination address in RAM_G
+    src    : UInt32 # source address in flash memory
+    num    : UInt32 # number of bytes to write
+
+@dataclass
+class CMD_APPENDF (Command):
+    '''Append FLASH Data to RAM_DL.'''
+    ptr    : UInt32 # start of source commands in flash memory
+    num    : UInt32 # number of bytes to copy
+
+@dataclass
+class CMD_FLASHUPDATE (Command):
+    '''Write data to FLASH, erasing if necessary.'''
+    dest   : UInt32 # destination address in flash memory
+    src    : UInt32 # source address in main memory RAM_G
+    num    : UInt32 # number of bytes to write
+
+@dataclass
+class CMD_FLASHDETACH (Command):
+    '''Detach from FLASH.'''
+    pass
+
+@dataclass
+class CMD_FLASHATTACH (Command):
+    '''Attach to FLASH.'''
+    pass
+
+@dataclass
+class CMD_FLASHFAST (Command):
+    '''Enter full-speed mode.'''
+    result : UInt32 # written with the result code
+
+@dataclass
+class CMD_FLASHSPIDESEL (Command):
+    '''SPI bus: deselect device.'''
+    pass
+
+@dataclass
+class CMD_FLASHSPITX (Command):
+    '''SPI bus: write bytes.'''
+    num    : UInt32 # number of bytes to transmit
+
+@dataclass
+class CMD_FLASHSPIRX (Command):
+    '''SPI bus: read bytes.'''
+    ptr    : UInt32 # destination address in RAM_G
+    num    : UInt32 # number of bytes to receive
+
+@dataclass
+class CMD_CLEARCACHE (Command):
+    '''Clear the FLASH cache.'''
+    pass
+
+@dataclass
+class CMD_FLASHSOURCE (Command):
+    '''Specify the FLASH source address.'''
+    ptr    : UInt32 # flash address
+
+@dataclass
+class CMD_VIDEOSTARTF (Command):
+    '''Initialize video frame decoder.'''
+    pass
+
+@dataclass
+class CMD_ANIMSTART (Command):
+    '''Start an animation.'''
+    ch     :  Int32 # animation channel
+    aoptr  : UInt32 # the address of the animation object in flash memory
+    loop   : UInt32 # loop flag
+
+@dataclass
+class CMD_ANIMSTOP (Command):
+    '''Stop an animation.'''
+    ch     :  Int32 # animation channel
+
+@dataclass
+class CMD_ANIMXY (Command):
+    '''Set the coordinates of an animation.'''
+    ch     :  Int32 # animation channel
+    x      :  Int16 # x screen coordinate for the animation center, in pixels
+    y      :  Int16 # y screen coordinate for the animation center, in pixels
+
+@dataclass
+class CMD_ANIMDRAW (Command):
+    '''Draw active animations.'''
+    ch     :  Int32 # animation channel
+
+@dataclass
+class CMD_ANIMFRAME (Command):
+    '''Render one frame of an animation.'''
+    x      :  Int16 # x screen coordinate for the animation center, in pixels
+    y      :  Int16 # y screen coordinate for the animation center, in pixels
+    aoptr  : UInt32 # the address of the animation object in flash memory
+    frame  : UInt32 # frame number to draw
+
+@dataclass
+class CMD_SYNC (Command):
+    '''Synchronize with video blanking.'''
+    pass
+
+@dataclass
+class CMD_BITMAP_TRANSFORM (Command):
+    '''Compute a bitmap transform matrix.'''
+    x0     :  Int32 # point 0 screen coordinate, in pixels
+    y0     :  Int32 # point 0 screen coordinate, in pixels
+    x1     :  Int32 # point 1 screen coordinate, in pixels
+    y1     :  Int32 # point 1 screen coordinate, in pixels
+    x2     :  Int32 # point 2 screen coordinate, in pixels
+    y2     :  Int32 # point 2 screen coordinate, in pixels
+    tx0    :  Int32 # point 0 bitmap coordinate, in pixels
+    ty0    :  Int32 # point 0 bitmap coordinate, in pixels
+    tx1    :  Int32 # point 1 bitmap coordinate, in pixels
+    ty1    :  Int32 # point 1 bitmap coordinate, in pixels
+    tx2    :  Int32 # point 2 bitmap coordinate, in pixels
+    ty2    :  Int32 # point 2 bitmap coordinate, in pixels
+    result : UInt16 # result return
+
