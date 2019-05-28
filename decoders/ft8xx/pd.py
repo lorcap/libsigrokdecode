@@ -51,22 +51,6 @@ class Int:
 
         return (self.val >> stop) & (2**(start - stop + 1) - 1)
 
-class String:
-    '''String handler.'''
-    __slots__ = ('ss', 'es', 'val', 'size')
-
-    def __init__ (self, ss: int, es: int, data: bytearray):
-        self.ss   = ss    # start sample
-        self.es   = es    # end sample
-        self.val  = data.decode(errors='ignore')
-        self.size = len(data) + 1 # counting '\0', as well
-
-    def __iter__ (self):
-        '''Allow starred expression.'''
-        yield self.ss
-        yield self.es
-        yield self.val
-
 class Fsm:
     '''Decoding finite-state machine implemented as coroutine.'''
 
@@ -204,31 +188,41 @@ class Fsm:
         addr.val = addr[21:0]
         return addr
 
-    def read_uint8 (self, line) -> Int:
-        '''Read 8-bit unsigned integer.'''
-        self.size = 1
-        yield from self.read(line, self.size)
-        return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
-
-    def read_uint16 (self, line) -> Int:
-        '''Read 16-bit unsigned integer.'''
-        self.size = 2
-        yield from self.read(line, self.size)
-        return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
-
-    def read_int16 (self, line) -> Int:
-        '''Read 16-bit signed integer.'''
-        self.size = 2
-        yield from self.read(line, self.size)
-        return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:], signed=True)
-
     def read_uint32 (self, line, *, count=4) -> Int:
-        '''Read 32-bit unsigned integer.'''
+        '''Read 'count' bytes and make a 32-bit unsigned integer.'''
         self.size = 4
         yield from self.read(line, count)
         return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
 
-    def read_string (self, line) -> String:
+    def read_Int32 (self, line) -> coproc.Int32:
+        '''Read a coproc's annotated 32-bit signed integer.'''
+        self.size = 4
+        yield from self.read(line, self.size)
+        return coproc.Int16(self.ss[-self.size], self.es[-1],
+                int.from_bytes(self.val[-self.size:], byteorder='little', signed=True))
+
+    def read_UInt32 (self, line) -> coproc.UInt32:
+        '''Read a 32-bit annotated unsigned integer.'''
+        self.size = 4
+        yield from self.read(line, self.size)
+        return coproc.UInt16(self.ss[-self.size], self.es[-1],
+                int.from_bytes(self.val[-self.size:], byteorder='little', signed=False))
+
+    def read_Int16 (self, line) -> coproc.Int16:
+        '''Read a coproc's annotated 16-bit signed integer.'''
+        self.size = 2
+        yield from self.read(line, self.size)
+        return coproc.Int16(self.ss[-self.size], self.es[-1],
+                int.from_bytes(self.val[-self.size:], byteorder='little', signed=True))
+
+    def read_UInt16 (self, line) -> coproc.UInt16:
+        '''Read a coproc's 16-bit annotated unsigned integer.'''
+        self.size = 2
+        yield from self.read(line, self.size)
+        return coproc.UInt16(self.ss[-self.size], self.es[-1],
+                int.from_bytes(self.val[-self.size:], byteorder='little', signed=False))
+
+    def read_String (self, line) -> coproc.String:
         self.size = 1
         yield from self.read(line, self.size)
         ss = self.ss[-1]
@@ -247,9 +241,9 @@ class Fsm:
             yield from self.read(line, self.size)
             count += 1
 
-        return String(ss, es, s)
+        return coproc.String(ss, es, s.decode(errors='ignore'))
 
-    def read (self, line, count) -> None:
+    def read (self, line, count: int, size: int) -> None:
         '''Read up-to 'count' bytes from MISO/MOSI (max: 4).'''
         assert 0 < count <= 4
         assert line in ('miso', 'mosi')
@@ -539,23 +533,22 @@ class Fsm:
         #-- Commands to begin and finish the display list ------------------#
         elif u32.val == 0xffffff00:
             cmd = coproc.CMD_DLSTART(*u32)
-
         elif u32.val == 0xffffff01:
             cmd = coproc.CMD_SWAP(*u32)
 
         #-- Commands to draw graphics objects ------------------------------#
         elif u32.val == 0xffffff0c:
-            x       = yield from self.read_int16 (line)
-            y       = yield from self.read_int16 (line)
-            font    = yield from self.read_int16 (line)
-            options = yield from self.read_uint16(line)
-            s       = yield from self.read_string(line)
+            x       = yield from self.read_Int16 (line)
+            y       = yield from self.read_Int16 (line)
+            font    = yield from self.read_Int16 (line)
+            options = yield from self.read_UInt16(line)
+            s       = yield from self.read_String(line)
             cmd = coproc.CMD_TEXT(*u32,
-                    x      =coproc.Int16 (*x      ),
-                    y      =coproc.Int16 (*y      ),
-                    font   =coproc.Int16 (*font   ),
-                    options=coproc.UInt16(*options),
-                    s      =coproc.String(*s      ))
+                    x      =x      ,
+                    y      =y      ,
+                    font   =font   ,
+                    options=options,
+                    s      =s      )
 
         #-- Commands to operate on memory ----------------------------------#
         #-- Commands for loading data into RAM_G ---------------------------#
@@ -564,10 +557,11 @@ class Fsm:
         #-- Commands for video playback ------------------------------------#
         #-- Commands for animation -----------------------------------------#
         #-- Other commands -------------------------------------------------#
+        elif u32.val == 0xffffff32:
+            cmd = coproc.CMD_COLDSTART(*u32)
         elif u32.val == 0xffffff02:
-            ms = yield from self.read_uint32(line)
             cmd = coproc.CMD_INTERRUPT(*u32,
-                    ms=coproc.UInt32(*ms))
+                    ms=(yield from self.read_UInt32(line)))
 
         #-------------------------------------------------------------------#
         else:
