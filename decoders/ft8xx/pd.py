@@ -538,19 +538,19 @@ class Fsm:
 
         #-- Commands to draw graphics objects ------------------------------#
         elif u32.val == 0xffffff0c:
-            x       = yield from self.read_Int16 (line)
-            y       = yield from self.read_Int16 (line)
-            font    = yield from self.read_Int16 (line)
-            options = yield from self.read_UInt16(line)
-            s       = yield from self.read_String(line)
             cmd = coproc.CMD_TEXT(*u32,
-                    x      =x      ,
-                    y      =y      ,
-                    font   =font   ,
-                    options=options,
-                    s      =s      )
+                    x      =(yield from self.read_Int16 (line)),
+                    y      =(yield from self.read_Int16 (line)),
+                    font   =(yield from self.read_Int16 (line)),
+                    options=(yield from self.read_UInt16(line)),
+                    s      =(yield from self.read_String(line)))
 
         #-- Commands to operate on memory ----------------------------------#
+        elif u32.val == 0xffffff1e:
+            cmd = coproc.CMD_APPEND(*u32,
+                    ptr=(yield from self.read_UInt32(line)),
+                    num=(yield from self.read_UInt32(line)))
+
         #-- Commands for loading data into RAM_G ---------------------------#
         #-- Commands for setting the bitmap transform matrix ---------------#
         #-- Commands for flash operation -----------------------------------#

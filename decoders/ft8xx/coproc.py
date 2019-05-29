@@ -72,23 +72,29 @@ class Command (annotation.Command):
 
     @property
     def ch_str (self) -> str:
-        return self._dec_str(self.ch)
+        return self._dec_str(self.ch.val)
 
     @property
     def dst_str (self) -> str:
-        return self._hex_str(self.dst)
+        return self._hex_str(self.dst.val)
 
     @property
     def font_str (self) -> str:
-        return str(self.font)
+        return str(self.font.val)
 
     @property
     def h_str (self) -> str:
-        return f'{self.h}px'
+        return f'{self.h.val}px'
 
     @property
     def num_str (self) -> str:
-        return self._dec_str(self.num)
+        return self._dec_str(self.num.val)
+
+    @property
+    def num4_str (self) -> str:
+        if self.num.val % 4 != 0:
+            self._warning = warning.Message('not a multiple of 4')
+        return Command.num_str(self)
 
     @property
     def options_str (self) -> str:
@@ -102,7 +108,7 @@ class Command (annotation.Command):
         CMD_TBT = ('CMD_TEXT', 'CMD_BUTTON', 'CMD_TOGGLE')
         ret = []
 
-        if self.options == 0:
+        if self.options.val == 0:
             if self.name_ in CMD_BCKG_SDTP_S:
                 ret.append('OPT_3D')
             elif self.name_ == 'CMD_LOADIMAGE':
@@ -111,56 +117,56 @@ class Command (annotation.Command):
                 ret.append(str(0))
 
         bit = 1
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             elif self.name_ == 'CMD_LOADIMAGE':
                 ret.append('OPT_MONO')
             else:
                 ret.append(str(bit))
 
         bit = 2
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             elif self.name_ == 'CMD_LOADIMAGE':
                 ret.append('OPT_NODL')
             else:
                 ret.append(str(bit))
 
         bit = 4
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             elif self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_NOTEAR')
             else:
                 ret.append(str(bit))
 
         bit = 8
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             elif self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_FULLSCREEN')
             else:
                 ret.append(str(bit))
 
         bit = 16
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             elif self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_MEDIAFIFO')
             else:
                 ret.append(str(bit))
 
         bit = 32
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             elif self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_SOUND')
             else:
                 ret.append(str(bit))
 
         bit = 64
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             if self.name_ in CMD_ILPV:
                 ret.append('OPT_FLASH')
             else:
                 ret.append(str(bit))
 
         bit = 256
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             if self.name_ in CMD_BCKG_SDTP_S:
                 ret.append('OPT_FLAT')
             elif self.name_ == 'CMD_NUMBER':
@@ -169,26 +175,26 @@ class Command (annotation.Command):
                 ret.append(str(bit))
 
         bit = 512
-        if self.options & 1536 == bit:
+        if self.options.val & 1536 == bit:
             if self.name_ in CMD_KTN:
                 ret.append('OPT_CENTERX')
             else:
                 ret.append(str(bit))
 
         bit = 1024
-        if self.options & 1536 == bit:
+        if self.options.val & 1536 == bit:
             if self.name_ in CMD_KTN:
                 ret.append('OPT_CENTERY')
             else:
                 ret.append(str(bit))
 
         bit = 1536
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             if self.name_ in CMD_KTN:
                 ret.append('OPT_CENTER')
 
         bit = 2048
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             if self.name_ in CMD_CG:
                 ret.append('OPT_NOBACK')
             elif self.name_ in CMD_TBT:
@@ -197,14 +203,14 @@ class Command (annotation.Command):
                 ret.append(str(bit))
 
         bit = 8192
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             if self.name_ in CMD_CG:
                 ret.append('OPT_NOTICKS')
             else:
                 ret.append(str(bit))
 
         bit = 16384
-        if self.options & 49152 == bit:
+        if self.options.val & 49152 == bit:
             if self.name_ == 'CMD_CLOCK':
                 ret.append('OPT_NOHM')
             elif self.name_ == 'CMD_GAUGE':
@@ -213,14 +219,14 @@ class Command (annotation.Command):
                 ret.append(str(bit))
 
         bit = 32768
-        if self.options & 49152 == bit:
+        if self.options.val & 49152 == bit:
             if self.name_ == 'CMD_CLOCK':
                 ret.append('OPT_NOSECS')
             else:
                 ret.append(str(bit))
 
         bit = 49152
-        if self.options & bit == bit:
+        if self.options.val & bit == bit:
             if self.name_ == 'CMD_CLOCK':
                 ret.append('OPT_NOHANDS')
 
@@ -228,67 +234,71 @@ class Command (annotation.Command):
 
     @property
     def ptr_str (self) -> str:
+        if not memmap.RAM_G.contains(self.ptr.val):
+            self._warning = warning.Message('not a RAM_G address')
+        elif memmap.add(self.ptr.val, self.num.val) > memmap.RAM_G.end:
+            self._warning = warning.Message('RAM_G overflow')
         return self._hex_str(self.ptr)
 
     @property
     def size_str (self) -> str:
-        return self._dec_str(self.size)
+        return self._dec_str(self.size.val)
 
     @property
     def src_str (self) -> str:
-        return self._hex_str(self.src)
+        return self._hex_str(self.src.val)
 
     @property
     def tx0_str (self) -> str:
-        return f'{self.tx0}px'
+        return f'{self.tx0.val}px'
 
     @property
     def tx1_str (self) -> str:
-        return f'{self.tx1}px'
+        return f'{self.tx1.val}px'
 
     @property
     def tx2_str (self) -> str:
-        return f'{self.tx2}px'
+        return f'{self.tx2.val}px'
 
     @property
     def ty0_str (self) -> str:
-        return f'{self.ty0}px'
+        return f'{self.ty0.val}px'
 
     @property
     def ty1_str (self) -> str:
-        return f'{self.ty1}px'
+        return f'{self.ty1.val}px'
 
     @property
     def ty2_str (self) -> str:
-        return f'{self.ty2}px'
+        return f'{self.ty2.val}px'
 
     @property
     def x_str (self) -> str:
-        return f'{self.x}px'
+        return f'{self.x.val}px'
 
     @property
     def x1_str (self) -> str:
-        return f'{self.x1}px'
+        return f'{self.x1.val}px'
 
     @property
     def x2_str (self) -> str:
-        return f'{self.x2}px'
+        return f'{self.x2.val}px'
 
     @property
     def y_str (self) -> str:
-        return f'{self.y}px'
+        return f'{self.y.val}px'
 
     @property
     def y1_str (self) -> str:
-        return f'{self.y1}px'
+        return f'{self.y1.val}px'
 
     @property
     def y2_str (self) -> str:
-        return f'{self.y2}px'
+        return f'{self.y2.val}px'
 
     @property
     def w_str (self) -> str:
-        return f'{self.w}px'
+        return f'{self.w.val}px'
 
 @dataclass
 class Parameter (annotation.Annotation):
