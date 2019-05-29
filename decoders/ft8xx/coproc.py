@@ -71,9 +71,224 @@ class Command (annotation.Command):
         return [f'{self.name_}({par_str})']
 
     @property
+    def ch_str (self) -> str:
+        return self._dec_str(self.ch)
+
+    @property
+    def dst_str (self) -> str:
+        return self._hex_str(self.dst)
+
+    @property
+    def font_str (self) -> str:
+        return str(self.font)
+
+    @property
+    def h_str (self) -> str:
+        return f'{self.h}px'
+
+    @property
+    def num_str (self) -> str:
+        return self._dec_str(self.num)
+
+    @property
     def options_str (self) -> str:
         '''Options.'''
-        return 'Fix me!'
+        CMD_BCKG_SDTP_S = ('CMD_BUTTON', 'CMD_CLOCK', 'CMD_KEYS', 'CMD_GAUGE',
+                           'CMD_SLIDER', 'CMD_DIAL', 'CMD_TOGGLE', 'CMD_PROGRESS',
+                           'CMD_SCROLLBAR')
+        CMD_KTN =  ('CMD_KEYS', 'CMD_TEXT', 'CMD_NUMBER')
+        CMD_CG = ('CMD_CLOCK', 'CMD_GAUGE')
+        CMD_ILPV = ('CMD_INFLATE2', 'CMD_LOADIMAGE', 'CMD_PLAYVIDEO', 'CMD_VIDEOSTART')
+        CMD_TBT = ('CMD_TEXT', 'CMD_BUTTON', 'CMD_TOGGLE')
+        ret = []
+
+        if self.options == 0:
+            if self.name_ in CMD_BCKG_SDTP_S:
+                ret.append('OPT_3D')
+            elif self.name_ == 'CMD_LOADIMAGE':
+                ret.append('OPT_RGB565')
+            else:
+                ret.append(str(0))
+
+        bit = 1
+        if self.options & bit == bit:
+            elif self.name_ == 'CMD_LOADIMAGE':
+                ret.append('OPT_MONO')
+            else:
+                ret.append(str(bit))
+
+        bit = 2
+        if self.options & bit == bit:
+            elif self.name_ == 'CMD_LOADIMAGE':
+                ret.append('OPT_NODL')
+            else:
+                ret.append(str(bit))
+
+        bit = 4
+        if self.options & bit == bit:
+            elif self.name_ == 'CMD_PLAYVIDEO':
+                ret.append('OPT_NOTEAR')
+            else:
+                ret.append(str(bit))
+
+        bit = 8
+        if self.options & bit == bit:
+            elif self.name_ == 'CMD_PLAYVIDEO':
+                ret.append('OPT_FULLSCREEN')
+            else:
+                ret.append(str(bit))
+
+        bit = 16
+        if self.options & bit == bit:
+            elif self.name_ == 'CMD_PLAYVIDEO':
+                ret.append('OPT_MEDIAFIFO')
+            else:
+                ret.append(str(bit))
+
+        bit = 32
+        if self.options & bit == bit:
+            elif self.name_ == 'CMD_PLAYVIDEO':
+                ret.append('OPT_SOUND')
+            else:
+                ret.append(str(bit))
+
+        bit = 64
+        if self.options & bit == bit:
+            if self.name_ in CMD_ILPV:
+                ret.append('OPT_FLASH')
+            else:
+                ret.append(str(bit))
+
+        bit = 256
+        if self.options & bit == bit:
+            if self.name_ in CMD_BCKG_SDTP_S:
+                ret.append('OPT_FLAT')
+            elif self.name_ == 'CMD_NUMBER':
+                ret.append('OPT_SIGNED')
+            else:
+                ret.append(str(bit))
+
+        bit = 512
+        if self.options & 1536 == bit:
+            if self.name_ in CMD_KTN:
+                ret.append('OPT_CENTERX')
+            else:
+                ret.append(str(bit))
+
+        bit = 1024
+        if self.options & 1536 == bit:
+            if self.name_ in CMD_KTN:
+                ret.append('OPT_CENTERY')
+            else:
+                ret.append(str(bit))
+
+        bit = 1536
+        if self.options & bit == bit:
+            if self.name_ in CMD_KTN:
+                ret.append('OPT_CENTER')
+
+        bit = 2048
+        if self.options & bit == bit:
+            if self.name_ in CMD_CG:
+                ret.append('OPT_NOBACK')
+            elif self.name_ in CMD_TBT:
+                ret.append('OPT_FORMAT')
+            else:
+                ret.append(str(bit))
+
+        bit = 8192
+        if self.options & bit == bit:
+            if self.name_ in CMD_CG:
+                ret.append('OPT_NOTICKS')
+            else:
+                ret.append(str(bit))
+
+        bit = 16384
+        if self.options & 49152 == bit:
+            if self.name_ == 'CMD_CLOCK':
+                ret.append('OPT_NOHM')
+            elif self.name_ == 'CMD_GAUGE':
+                ret.append('OPT_NOPOINTER')
+            else:
+                ret.append(str(bit))
+
+        bit = 32768
+        if self.options & 49152 == bit:
+            if self.name_ == 'CMD_CLOCK':
+                ret.append('OPT_NOSECS')
+            else:
+                ret.append(str(bit))
+
+        bit = 49152
+        if self.options & bit == bit:
+            if self.name_ == 'CMD_CLOCK':
+                ret.append('OPT_NOHANDS')
+
+        return '|'.join(ret)
+
+    @property
+    def ptr_str (self) -> str:
+        return self._hex_str(self.ptr)
+
+    @property
+    def size_str (self) -> str:
+        return self._dec_str(self.size)
+
+    @property
+    def src_str (self) -> str:
+        return self._hex_str(self.src)
+
+    @property
+    def tx0_str (self) -> str:
+        return f'{self.tx0}px'
+
+    @property
+    def tx1_str (self) -> str:
+        return f'{self.tx1}px'
+
+    @property
+    def tx2_str (self) -> str:
+        return f'{self.tx2}px'
+
+    @property
+    def ty0_str (self) -> str:
+        return f'{self.ty0}px'
+
+    @property
+    def ty1_str (self) -> str:
+        return f'{self.ty1}px'
+
+    @property
+    def ty2_str (self) -> str:
+        return f'{self.ty2}px'
+
+    @property
+    def x_str (self) -> str:
+        return f'{self.x}px'
+
+    @property
+    def x1_str (self) -> str:
+        return f'{self.x1}px'
+
+    @property
+    def x2_str (self) -> str:
+        return f'{self.x2}px'
+
+    @property
+    def y_str (self) -> str:
+        return f'{self.y}px'
+
+    @property
+    def y1_str (self) -> str:
+        return f'{self.y1}px'
+
+    @property
+    def y2_str (self) -> str:
+        return f'{self.y2}px'
+
+    @property
+    def w_str (self) -> str:
+        return f'{self.w}px'
 
 @dataclass
 class Parameter (annotation.Annotation):
@@ -198,12 +413,12 @@ class CMD_LOADIMAGE (Command):
 class CMD_MEDIAFIFO (Command):
     '''Set up a streaming media FIFO'''
     ptr    : UInt32 # starting address of memory block
-    size   : UInt32    # number of bytes in the source memory block
+    size   : UInt32 # number of bytes in the source memory block
 
 @dataclass
 class CMD_PLAYVIDEO (Command):
     '''Video playback'''
-    opts   : UInt32 #
+    options: UInt32 #
     data   : int
 
 @dataclass
@@ -240,7 +455,7 @@ class CMD_MEMSET (Command):
 @dataclass
 class CMD_MEMCPY (Command):
     '''Copy a block of memory'''
-    dest   : UInt32 # address of the destination memory block
+    dst    : UInt32 # address of the destination memory block
     src    : UInt32 # address of the source memory block
     num    : UInt32 # number of bytes to copy
 

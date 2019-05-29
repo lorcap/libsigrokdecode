@@ -50,13 +50,17 @@ class Annotation:
     def name_ (self) -> str:
         return self.__class__.__name__
 
+    def _dec_str (self, val: int) -> str:
+        '''Uniform representation of a decimal.'''
+        return f'{val:_d}'
+
     def _hex_str (self, val: int) -> str:
-        '''Uniform representation of hexadecimals.'''
+        '''Uniform representation of a hexadecimal.'''
         return f'{val:_X}h'
 
     def _int_str (self, val: int) -> str:
         '''Uniform representation of an integer.'''
-        return str(val) if val < 10 else f'{val:_d} [{self._hex_str(val)}]'
+        return str(val) if val < 10 else f'{self._dec_str(val)} [{self._hex_str(val)}]'
 
     def _par_str (self, val: int, name: str='', desc: str='') -> str:
         '''Uniform representation of parameter name and value.'''
