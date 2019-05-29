@@ -348,13 +348,13 @@ class REG_PCLK (Reg):
         else              : return '÷'+self.val
 
 @dataclass
-class REG_TAG_Y (Reg):
-    '''Tag query Y coordinate.'''
+class REG_TAG_X (Reg):
+    '''Tag query X coordinate.'''
     pass
 
 @dataclass
-class REG_TAG_X (Reg):
-    '''Tag query X coordinate.'''
+class REG_TAG_Y (Reg):
+    '''Tag query Y coordinate.'''
     pass
 
 @dataclass

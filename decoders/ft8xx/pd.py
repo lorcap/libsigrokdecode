@@ -188,6 +188,12 @@ class Fsm:
         addr.val = addr[21:0]
         return addr
 
+    def read_uint8 (self, line) -> Int:
+        '''Read 8-bit unsigned integer.'''
+        self.size = 1
+        yield from self.read(line, self.size)
+        return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
+
     def read_uint32 (self, line, *, count=4) -> Int:
         '''Read 'count' bytes and make a 32-bit unsigned integer.'''
         self.size = 4
@@ -243,7 +249,7 @@ class Fsm:
 
         return coproc.String(ss, es, s.decode(errors='ignore'))
 
-    def read (self, line, count: int, size: int) -> None:
+    def read (self, line, count: int) -> None:
         '''Read up-to 'count' bytes from MISO/MOSI (max: 4).'''
         assert 0 < count <= 4
         assert line in ('miso', 'mosi')
@@ -562,6 +568,10 @@ class Fsm:
         elif u32.val == 0xffffff02:
             cmd = coproc.CMD_INTERRUPT(*u32,
                     ms=(yield from self.read_UInt32(line)))
+        elif u32.val == 0xffffff19:
+            cmd = coproc.CMD_REGREAD(*u32,
+                    ptr   =(yield from self.read_UInt32(line)),
+                    result=(yield from self.read_UInt32(line)))
 
         #-------------------------------------------------------------------#
         else:

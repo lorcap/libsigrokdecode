@@ -19,7 +19,7 @@
 
 from typing import List
 from dataclasses import dataclass
-from . import annotation
+from . import annotation, memmap, warning
 
 OPT_3D          =     0 # 3D effect
 OPT_RGB565      =     0 # decode the source image to RGB565 format
@@ -94,7 +94,7 @@ class Command (annotation.Command):
     def num4_str (self) -> str:
         if self.num.val % 4 != 0:
             self._warning = warning.Message('not a multiple of 4')
-        return Command.num_str(self)
+        return Command._num_str(self)
 
     @property
     def options_str (self) -> str:
@@ -118,42 +118,42 @@ class Command (annotation.Command):
 
         bit = 1
         if self.options.val & bit == bit:
-            elif self.name_ == 'CMD_LOADIMAGE':
+            if self.name_ == 'CMD_LOADIMAGE':
                 ret.append('OPT_MONO')
             else:
                 ret.append(str(bit))
 
         bit = 2
         if self.options.val & bit == bit:
-            elif self.name_ == 'CMD_LOADIMAGE':
+            if self.name_ == 'CMD_LOADIMAGE':
                 ret.append('OPT_NODL')
             else:
                 ret.append(str(bit))
 
         bit = 4
         if self.options.val & bit == bit:
-            elif self.name_ == 'CMD_PLAYVIDEO':
+            if self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_NOTEAR')
             else:
                 ret.append(str(bit))
 
         bit = 8
         if self.options.val & bit == bit:
-            elif self.name_ == 'CMD_PLAYVIDEO':
+            if self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_FULLSCREEN')
             else:
                 ret.append(str(bit))
 
         bit = 16
         if self.options.val & bit == bit:
-            elif self.name_ == 'CMD_PLAYVIDEO':
+            if self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_MEDIAFIFO')
             else:
                 ret.append(str(bit))
 
         bit = 32
         if self.options.val & bit == bit:
-            elif self.name_ == 'CMD_PLAYVIDEO':
+            if self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_SOUND')
             else:
                 ret.append(str(bit))
@@ -233,12 +233,22 @@ class Command (annotation.Command):
         return '|'.join(ret)
 
     @property
-    def ptr_str (self) -> str:
+    def ptr_ramg_str (self) -> str:
         if not memmap.RAM_G.contains(self.ptr.val):
             self._warning = warning.Message('not a RAM_G address')
         elif memmap.add(self.ptr.val, self.num.val) > memmap.RAM_G.end:
             self._warning = warning.Message('RAM_G overflow')
-        return self._hex_str(self.ptr)
+        return self._hex_str(self.ptr.val)
+
+    @property
+    def ptr_ramreg_str (self) -> str:
+        if not memmap.RAM_REG.contains(self.ptr.val):
+            self._warning = warning.Message('not a RAM_REG address')
+        return self._hex_str(self.ptr.val)
+
+    @property
+    def result_ptr (self) -> str:
+        return f'({self.result.val})'
 
     @property
     def size_str (self) -> str:
@@ -302,7 +312,7 @@ class Command (annotation.Command):
 
 @dataclass
 class Parameter (annotation.Annotation):
-    '''Parameter of type uint32_t.'''
+    '''Base class for all integer parameters.'''
     val: int    # raw value
 
     @property
@@ -387,11 +397,16 @@ class CMD_APPEND (Command):
     ptr    : UInt32 # starting address of source commands in RAM_G
     num    : UInt32 # number of bytes to copy
 
+    ptr_str = Command.ptr_ramg_str
+    num_str = Command.num4_str
+
 @dataclass
 class CMD_REGREAD (Command):
     '''Read a register value.'''
     ptr    : UInt32 # address of the register to be read
     result : UInt32 # the register value to be read at `ptr` address
+
+    ptr_str = Command.ptr_ramreg_str
 
 @dataclass
 class CMD_MEMWRITE (Command):
