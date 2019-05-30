@@ -17,6 +17,8 @@
 ## along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
+'''Module for annotating registers in RAM_REG memory space.'''
+
 from dataclasses import dataclass
 from typing import List
 from . import annotation, warning
@@ -37,7 +39,7 @@ class Reg (annotation.Command):
     def parameters (self) -> List[str]:
         return ['val_']
 
-    @static_method
+    @staticmethod
     def _pin_dir_str (dir_: bool) -> str:
         return 'output' if dir_ else 'input'
 
@@ -58,6 +60,19 @@ class Reg (annotation.Command):
         elif strength == 0b10: return '15mA'
         elif strength == 0b11: return '20mA'
         else                 : return ''
+
+def at (addr: int) -> Reg:
+    '''Find register name at the given address.'''
+    if not memmap.RAM_REG.contains(addr):
+        return None
+    if addr % 4:
+        return None
+
+    ramreg = __import__(__name__).__dict__ # this module's objects
+    for reg in [obj for name,obj in  ramreg.items() if name.startswith('REG_')]:
+        if addr == reg.addr:
+            return reg
+    return None
 
 @dataclass(frozen=True)
 class Sound:
