@@ -366,7 +366,7 @@ class Fsm:
         if Reg:
             name = Reg.__name__
             if   name == 'REG_OUTBITS':
-                reg = Reg(*u32, red=u32[8:6], green=[5:3], blue=[2:0])
+                reg = Reg(*u32, red=u32[8:6], green=u32[5:3], blue=u32[2:0])
             elif name == 'REG_GPIO_DIR':
                 reg = Reg(*u32, disp=u32[7], gpio1=u32[1], gpio0=u32[0])
             elif name == 'REG_GPIO':

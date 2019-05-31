@@ -19,7 +19,7 @@
 
 '''Module for annotating registers in RAM_REG memory space.'''
 
-from dataclasses import dataclass
+from dataclasses import dataclass, make_dataclass
 from typing import List
 from . import annotation, warning
 
@@ -38,6 +38,10 @@ class Reg (annotation.Command):
 
     def parameters (self) -> List[str]:
         return ['val_']
+
+    def _combine_str (self, cls1, cls2):
+        '''Combine values of the two classes.'''
+        return cls1.val_str(self) + ' + ' + cls2.val_str(self)
 
     @staticmethod
     def _pin_dir_str (dir_: bool) -> str:
@@ -61,16 +65,6 @@ class Reg (annotation.Command):
         elif strength == 0b11: return '20mA'
         else                 : return ''
 
-    @staticmethod
-    def _tsel (compat: str, extended: str, host: str) -> str:
-        '''Touch selector.'''
-        # no selection at the moment
-        return (compat if compat else '-')\
-             + '/'\
-             + (extended if extended else '-')
-             + '/'\
-             + (host if host else '-')
-
 def at (addr: int) -> Reg:
     '''Find register name at the given address.'''
     if not memmap.RAM_REG.contains(addr):
@@ -83,6 +77,15 @@ def at (addr: int) -> Reg:
         if addr == reg.addr:
             return reg
     return None
+
+def _combine (Reg1, Reg2):
+    '''Combine two registers that share the same address.'''
+    return make_dataclass(Reg1.__name__ + '_' + Reg2.__name__,
+                          [], bases=(Reg1, Reg2),
+                          namespace={'val_str': property(lambda self:
+                              Reg1.val_str(self) + '/' + Reg2.val_str(self))})
+
+# ------------------------------------------------------------------------- #
 
 @dataclass(frozen=True)
 class Sound:
@@ -757,63 +760,76 @@ class REG_CMD_DL (Reg):
             return ''
 
 @dataclass
-class _REG_104 (Reg):
+class REG_TOUCH_MODE (Reg):
     '''Touch-screen sampling mode.'''
     addr = 0x302104
     bits = 2
 
     @property
-    def name_ (self) -> str:
-        return self._tsel('REG_TOUCH_MODE', 'REG_CTOUCH_MODE', '')
+    def val_str (self) -> str:
+        if   self.val == 0b00: return 'off'
+        elif self.val == 0b01: return 'single'
+        elif self.val == 0b10: return 'frame'
+        elif self.val == 0b11: return 'continuouson'
+        else                 : return ''
+
+@dataclass
+class REG_CTOUCH_MODE (Reg):
+    '''Touch-screen sampling mode.'''
+    addr = 0x302104
+    bits = 2
 
     @property
     def val_str (self) -> str:
-        if   self.val == 0b00: return self._tsel('off'         , 'off', '')
-        elif self.val == 0b01: return self._tsel('single'      , ''   , '')
-        elif self.val == 0b10: return self._tsel('frame'       , ''   , '')
-        elif self.val == 0b11: return self._tsel('continuouson', 'on' , '')
+        if   self.val == 0b00: return 'off'
+        elif self.val == 0b11: return 'on'
         else                 : return ''
 
-REG_TOUCH_MODE  = _REG_104
-REG_CTOUCH_MODE = _REG_104
+REG_TOUCH_MODE_REG_CTOUCH_MODE = _combine(REG_TOUCH_MODE, REG_CTOUCH_MODE)
 
 @dataclass
-class _REG_108 (Reg):
-    '''Set touch ADC mode / Set capacitive touch operation mode.'''
+class REG_TOUCH_ADC_MODE (Reg):
+    '''Set touch ADC mode.'''
     addr = 0x302108
     bits = 1
 
     @property
-    def name_ (self) -> str:
-        return self._tsel('REG_TOUCH_ADC_MODE', 'REG_CTOUCH_EXTENDED', '')
+    def val_str (self) -> str:
+        if   self.val == 0: return 'single ended'
+        elif self.val == 1: return 'differential'
+        else              : return ''
+
+@dataclass
+class REG_CTOUCH_EXTENDED (Reg):
+    '''Set capacitive touch operation mode.'''
+    addr = 0x302108
+    bits = 1
 
     @property
     def val_str (self) -> str:
-        if   self.val == 0: return self._tsel('single ended', 'extended'     , '')
-        elif self.val == 1: return self._tsel('differential', 'compatibility', '')
+        if   self.val == 0: return 'extended'
+        elif self.val == 1: return 'compatibility'
         else              : return ''
 
-REG_TOUCH_ADC_MODE  = _REG_108
-REG_CTOUCH_EXTENDED = _REG_108
+REG_TOUCH_ADC_MODE_REG_CTOUCH_EXTENDED = _combine(REG_TOUCH_ADC_MODE, REG_CTOUCH_EXTENDED)
 
 @dataclass
-class _REG_104 (Reg):
+class REG_TOUCH_CHARGE (Reg):
     '''Touch charge time.'''
     addr = 0x30210c
     bits = 16
 
     @property
-    def name_ (self) -> str:
-        return self._tsel('REG_TOUCH_CHARGE', '', 'REG_EHOST_TOUCH_X')
-
-    @property
     def val_str (self) -> str:
-        return self._tsel('{} clock cycles'.format(self.val*6),
-                          '',
-                          str(self.val))
+        return '{} clock cycles'.format(self.val*6)
 
-REG_TOUCH_CHARGE     = _REG_10c
-REG_CTOUCH_TOUCH1_XY = _REG_10c
+@dataclass
+class REG_CTOUCH_TOUCH1_XY (Reg):
+    '''Coordinate of second touch point.'''
+    addr = 0x30210c
+    bits = 16
+
+REG_TOUCH_CHARGE_REG_CTOUCH_TOUCH1_XY = _combine(REG_TOUCH_CHARGE, REG_CTOUCH_TOUCH1_XY)
 
 @dataclass
 class REG_TOUCH_SETTLE (Reg):
@@ -826,63 +842,63 @@ class REG_TOUCH_SETTLE (Reg):
         return '{} clock cycles'.format(self.val*6)
 
 @dataclass
-class _REG_114 (Reg):
-    '''Touch oversample factor / Touch host mode: touch ID.'''
+class REG_TOUCH_OVERSAMPLE (Reg):
+    '''Touch oversample factor.'''
     addr = 0x302114
     bits = 4
 
     @property
-    def name_ (self) -> str:
-        return self._tsel('REG_TOUCH_OVERSAMPLE', '', 'REG_EHOST_TOUCH_ID')
+    def val_str (self) -> str:
+        if    1 <= self.val <=  5: return 'low accuracy'
+        elif  6 <= self.val <= 10: return 'medium accuracy'
+        elif 11 <= self.val <= 15: return 'high accuracy'
+        else                     : return ''
+
+@dataclass
+class REG_EHOST_TOUCH_ID (Reg):
+    '''Touch host mode: touch ID.'''
+    addr = 0x302114
+    bits = 4
 
     @property
     def val_str (self) -> str:
-        if    1 <= self.val <=  5: accuracy = 'low accuracy'
-        elif  6 <= self.val <= 10: accuracy = 'medium accuracy'
-        elif 11 <= self.val <= 15: accuracy = 'high accuracy'
-        else                     : accuracy = ''
+        if   0 <= self.val <= 4: return f'touch #{self.val}'
+        elif self.val == 0xf   : return 'done'
+        else                   : return ''
 
-        if   0 <= self.val <= 4: touch = f'touch #{self.val}'
-        elif self.val == 0xf   : touch = 'done'
-        else                   : touch = ''
-
-        return self._tsel(accuracy, '', touch)
-
-REG_TOUCH_OVERSAMPLE = _REG_114
-REG_EHOST_TOUCH_ID   = _REG_114
+REG_TOUCH_OVERSAMPLE_REG_EHOST_TOUCH_ID = _combine(REG_TOUCH_OVERSAMPLE, REG_EHOST_TOUCH_ID)
 
 @dataclass
 class REG_TOUCH_RZTHRESH (Reg):
-    '''Touch resistance threshold / Touch host mode: touch y value updated by host.'''
+    '''Touch resistance threshold.'''
     addr = 0x302118
     bits = 16
 
-    @property
-    def name_ (self) -> str:
-        return self._tsel('REG_TOUCH_RZTHRESH', '', 'REG_EHOST_TOUCH_Y')
+@dataclass
+class REG_EHOST_TOUCH_Y (Reg):
+    '''Touch host mode: touch y value updated by host.'''
+    addr = 0x302118
+    bits = 16
 
-    @property
-    def val_str (self) -> str:
-        v = str(self.val)
-        return self._tsel(v, '', v)
-
-REG_TOUCH_RZTHRESH = _REG_118
-REG_EHOST_TOUCH_Y  = _REG_118
+REG_TOUCH_RZTHRESH_REG_EHOST_TOUCH_Y = _combine(REG_TOUCH_RZTHRESH, REG_EHOST_TOUCH_Y)
 
 @dataclass
-class _REG_11c (Reg):
-    '''Touch-screen raw / Touch-screen screen data for touch 1.'''
+class REG_TOUCH_RAW_XY (Reg):
+    '''Touch-screen raw.'''
     x: int  # raw X coordinates
     y: int  # raw Y coordinates
     addr = 0x30211c
     bits = 32
 
-    @property
-    def name_ (self) -> str:
-        return self._tsel('REG_TOUCH_RAW_XY', 'REG_CTOUCH_TOUCH1_XY', '')
+@dataclass
+class REG_CTOUCH_TOUCH1_XY (Reg):
+    '''Touch-screen screen data for touch 1.'''
+    x: int  # raw X coordinates
+    y: int  # raw Y coordinates
+    addr = 0x30211c
+    bits = 32
 
-REG_TOUCH_RAW_XY     = _REG_11c
-REG_CTOUCH_TOUCH1_XY = _REG_11c
+REG_TOUCH_RAW_XY_REG_CTOUCH_TOUCH1_XY = _combine(REG_TOUCH_RAW_XY, REG_CTOUCH_TOUCH1_XY)
 
 @dataclass
 class REG_TOUCH_RZ (Reg):
