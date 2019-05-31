@@ -361,26 +361,29 @@ class Fsm:
 
     def decode_ramreg (self, u32: Int):
         '''Decode RAM Registers.'''
-        offset = self.addr - memmap.RAM_REG.begin
+        Reg = ramreg.at(self.addr)
 
-        if   offset == 0x000:
-            reg = ramreg.REG_ID(*u32)
-        elif offset == 0x004:
-            reg = ramreg.REG_FRAMES(*u32)
-        elif offset == 0x008:
-            reg = ramreg.REG_CLOCK(*u32)
-        elif offset == 0x00c:
-            reg = ramreg.REG_FREQUENCY(*u32)
-        elif offset == 0x010:
-            reg = ramreg.REG_RENDERMODE(*u32)
-        elif offset == 0x014:
-            reg = ramreg.REG_SNAPY(*u32)
-        elif offset == 0x018:
-            reg = ramreg.REG_SNAPSHOT(*u32)
-        elif offset == 0x01c:
-            reg = ramreg.REG_SNAPFORMAT(*u32)
-        elif offset == 0x020:
-            reg = ramreg.REG_CPURESET(*u32)
+        if Reg:
+            name = Reg.__name__
+            if   name == 'REG_OUTBITS':
+                reg = Reg(*u32, red=u32[8:6], green=[5:3], blue=[2:0])
+            elif name == 'REG_GPIO_DIR':
+                reg = Reg(*u32, disp=u32[7], gpio1=u32[1], gpio0=u32[0])
+            elif name == 'REG_GPIO':
+                reg = Reg(*u32, disp=u32[7], gpio=u32[6:5], lcd=u32[4],
+                                spi=u32[3:2], gpio1=u32[1], gpio0=u32[0])
+            elif name == 'REG_GPIOX_DIR':
+                reg = Reg(*u32, disp=u32[15], gpio3=u32[3], gpio2=u32[2],
+                                              gpio1=u32[1], gpio0=u32[0])
+            elif name == 'REG_GPIOX':
+                reg = Reg(*u32, disp=u32[15], gpio=u32[14:13], lcd=u32[12],
+                                spi=u32[11:10], gpio3=u32[3], gpio2=u32[2],
+                                                gpio1=u32[1], gpio0=u32[0])
+            elif name == ('REG_TOUCH_RAW_XY',
+                          'REG_TOUCH_SCREEN_XY', 'REG_CTOUCH_TOUCH1_XY'):
+                reg = Reg(*u32, x=u32[31:16], y=u32[15:0])
+            else:
+                reg = Reg(*u32)
         else:
             reg = warning.UnknownRegister(*u32, self.addr)
 

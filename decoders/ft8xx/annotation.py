@@ -50,21 +50,37 @@ class Annotation:
     def name_ (self) -> str:
         return self.__class__.__name__
 
-    def _dec_str (self, val: int) -> str:
-        '''Uniform representation of a decimal.'''
+    @staticmethod
+    def _addr_str (val: int) -> str:
+        '''Uniform representation of a memory address.'''
+        s = memmap.space(self.addr)
+        return s if s else '(unknown space)'
+
+    @staticmethod
+    def _dec_str (val: int) -> str:
+        '''Uniform representation of a frequency.'''
         return f'{val:_d}'
 
-    def _hex_str (self, val: int) -> str:
+    @staticmethod
+    def _freq_str (val: int) -> str:
+        if   val >= 10**6: return str(val/10**6) + 'MHz'
+        elif val >= 10**3: return str(val/10**3) + 'kHz'
+        else             : return str(val      ) + 'Hz'
+
+    @staticmethod
+    def _hex_str (val: int) -> str:
         '''Uniform representation of a hexadecimal.'''
         return f'{val:_X}h'
 
-    def _int_str (self, val: int) -> str:
+    @staticmethod
+    def _int_str (val: int) -> str:
         '''Uniform representation of an integer.'''
         return str(val) if val < 10 else f'{self._dec_str(val)} [{self._hex_str(val)}]'
 
-    def _par_str (self, val: int, name: str='', desc: str='') -> str:
+    @staticmethod
+    def _par_str (val: int, name: str='', desc: str='') -> str:
         '''Uniform representation of parameter name and value.'''
-        int_str = self._int_str(val)
+        int_str = Annotation._int_str(val)
         if name and desc:
             return f'{name}={int_str}: {desc}'
         elif name and not desc:
@@ -74,7 +90,15 @@ class Annotation:
         else:
             return int_str
 
-    def _variant (self, ft80x: str, ft81x: str, bt81x: str, unit: str = '') -> str:
+    @staticmethod
+    def _size_str (size: int) -> str:
+        '''Uniform representation of size parameters.'''
+        if   val >= 1024**2: return '{:.1f}'.format(val/1024**2) + 'MiB'
+        elif val >= 1024**1: return '{:.1f}'.format(val/1024**1) + 'KiB'
+        else               : return '{}'    .format(val        ) + 'B'
+
+    @staticmethod
+    def _variant (ft80x: str, ft81x: str, bt81x: str, unit: str = '') -> str:
         '''Uniform representation of parameter variants.'''
         return f'{ft80x}/{ft81x}/{bt81x}{unit} (FT80x/FT81x/BT81x)'
 
@@ -153,8 +177,10 @@ class Transaction (Annotation):
     @property
     def strings_ (self):
         name = self.name_
-        size = max(self.miso_size, self.mosi_size)
-        return [f'{name} transaction: out: {self.mosi_size}B, in: {self.miso_size}B',
-                f'{name}: {size}B',
+        size = self._size_str(max(self.miso_size, self.mosi_size))
+        mosi = self._size_str(self.mosi_size)
+        miso = self._size_str(self.miso_size)
+        return [f'{name} transaction: out: {mosi}, in: {miso}',
+                f'{name}: {size}',
                 name]
 

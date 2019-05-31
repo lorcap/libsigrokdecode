@@ -19,6 +19,12 @@
 
 class Space:
     '''Memory space.'''
+
+    @property
+    def size (self) -> int:
+        '''Size of the memory space.'''
+        return self.end - self.begin
+
     @classmethod
     def contains (cls, addr: int) -> bool:
         return cls.begin <= addr <= cls.end

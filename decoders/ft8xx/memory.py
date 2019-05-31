@@ -85,8 +85,7 @@ class Address (annotation.Annotation):
 
     @property
     def addr_str (self):
-        s = memmap.space(self.addr)
-        return s if s else '(unknown space)'
+        return self._addr_str(self.addr)
 
     @property
     def strings_ (self) -> List[str]:

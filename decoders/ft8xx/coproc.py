@@ -252,7 +252,7 @@ class Command (annotation.Command):
 
     @property
     def size_str (self) -> str:
-        return self._dec_str(self.size.val)
+        return self._size_str(self.size.val)
 
     @property
     def src_str (self) -> str:

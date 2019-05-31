@@ -61,6 +61,16 @@ class Reg (annotation.Command):
         elif strength == 0b11: return '20mA'
         else                 : return ''
 
+    @staticmethod
+    def _tsel (compat: str, extended: str, host: str) -> str:
+        '''Touch selector.'''
+        # no selection at the moment
+        return (compat if compat else '-')\
+             + '/'\
+             + (extended if extended else '-')
+             + '/'\
+             + (host if host else '-')
+
 def at (addr: int) -> Reg:
     '''Find register name at the given address.'''
     if not memmap.RAM_REG.contains(addr):
@@ -182,9 +192,7 @@ class REG_FREQUENCY (Reg):
 
     @property
     def val_str (self) -> str:
-        if   self.val >= 10**6: return str(self.val/10**6) + 'MHz'
-        elif self.val >= 10**3: return str(self.val/10**3) + 'kHz'
-        else                  : return str(self.val      ) + 'Hz'
+        return self._freq_str(self.val)
 
 @dataclass
 class REG_RENDERMODE (Reg):
@@ -477,113 +485,113 @@ class REG_PLAY (Reg):
 @dataclass
 class REG_GPIO_DIR (Reg):
     '''Legacy GPIO pin direction.'''
-    DISP: bool  # direction of pin DISP
-    GPIO1: bool # direction of GPIO1
-    GPIO0: bool # direction of GPIO0
+    disp: bool  # direction of pin DISP
+    gpio1: bool # direction of GPIO1
+    gpio0: bool # direction of GPIO0
     addr = 0x302090
     bits = 8
 
     @property
-    def DISP_str (self) -> str:
-        return self._pin_dir_str(self.DISP)
+    def disp_str (self) -> str:
+        return self._pin_dir_str(self.disp)
 
     @property
-    def GPIO1_str (self) -> str:
-        return self._pin_dir_str(self.GPIO1)
+    def gpio1_str (self) -> str:
+        return self._pin_dir_str(self.gpio1)
 
     @property
-    def GPIO0_str (self) -> str:
-        return self._pin_dir_str(self.GPIO0)
+    def gpio0_str (self) -> str:
+        return self._pin_dir_str(self.gpio0)
 
 @dataclass
 class REG_GPIO (Reg):
     '''Legacy GPIO read/write.'''
-    DISP: int   # high or low level of pin DISP
-    GPIO: int   # drive strength settings for pins GPIO0, GPIO1, CTP_RST_N
-    LCD: int    # drive strength settings for pins PCLK, DISP, VSYNC, HSYNC,DE, R, G, B, BACKLIGHT
-    SPI: int    # drive Strength Setting for pins MISO, MOSI, INT_N
-    GPIO1: int  # high or low level of pin GPIO1
-    GPIO0: int  # high or low level of pin GPIO0
+    disp: int   # high or low level of pin DISP
+    gpio: int   # drive strength settings for pins GPIO0, GPIO1, CTP_RST_N
+    lcd: int    # drive strength settings for pins PCLK, DISP, VSYNC, HSYNC,DE, R, G, B, BACKLIGHT
+    spi: int    # drive Strength Setting for pins MISO, MOSI, INT_N
+    gpio1: int  # high or low level of pin GPIO1
+    gpio0: int  # high or low level of pin GPIO0
     addr = 0x302094
     bits = 8
 
     @property
-    def DISP_str (self) -> str:
-        return self._pin_level(self.DISP)
+    def disp_str (self) -> str:
+        return self._pin_level(self.disp)
 
     @property
-    def LCD_str (self) -> str:
-        return self._pin_strength4(self.LCD)
+    def lcd_str (self) -> str:
+        return self._pin_strength4(self.lcd)
 
     @property
-    def GPIO_str (self) -> str:
-        return self._pin_strength2(self.GPIO)
+    def gpio_str (self) -> str:
+        return self._pin_strength2(self.gpio)
 
     @property
-    def SPI_str (self) -> str:
-        return self._pin_strength4(self.SPI)
+    def spi_str (self) -> str:
+        return self._pin_strength4(self.spi)
 
     @property
-    def GPIO1_str (self) -> str:
-        return self._pin_level(self.GPIO1)
+    def gpio1_str (self) -> str:
+        return self._pin_level(self.gpio1)
 
     @property
-    def GPIO0_str (self) -> str:
-        return self._pin_level(self.GPIO0)
+    def gpio0_str (self) -> str:
+        return self._pin_level(self.gpio0)
 
 @dataclass
 class REG_GPIOX_DIR (Reg):
     '''Extended GPIO pin direction.'''
-    DISP: bool  # direction of pin DISP
-    GPIO3: bool # direction of GPIO3
-    GPIO2: bool # direction of GPIO2
-    GPIO1: bool # direction of GPIO1
-    GPIO0: bool # direction of GPIO0
+    disp: bool  # direction of pin DISP
+    gpio3: bool # direction of GPIO3
+    gpio2: bool # direction of GPIO2
+    gpio1: bool # direction of GPIO1
+    gpio0: bool # direction of GPIO0
     addr = 0x302098
     bits = 16
 
-    DISP_str = REG_GPIO_DIR.DISP_str
+    disp_str = REG_GPIO_DIR.disp_str
 
     @property
-    def GPIO3_str (self) -> str:
-        return self._pin_dir_str(self.GPIO3)
+    def gpio3_str (self) -> str:
+        return self._pin_dir_str(self.gpio3)
 
     @property
-    def GPIO2_str (self) -> str:
-        return self._pin_dir_str(self.GPIO2)
+    def gpio2_str (self) -> str:
+        return self._pin_dir_str(self.gpio2)
 
-    GPIO1_str = REG_GPIO_DIR.GPIO1_str
-    GPIO0_str = REG_GPIO_DIR.GPIO0_str
+    gpio1_str = REG_GPIO_DIR.gpio1_str
+    gpio0_str = REG_GPIO_DIR.gpio0_str
 
 @dataclass
 class REG_GPIOX (Reg):
     '''Extended GPIO read/write.'''
-    DISP: int   # high or low level of pin DISP
-    GPIO: int   # drive strength settings for pins GPIO0,GPIO1, GPIO2, GPIO3, CTP_RST_N
-    LCD: int    # drive strength settings for pins PCLK, DISP, VSYNC, HSYNC, DE, R, G, B, BACKLIGHT
-    SPI: int    # drive Strength Setting for pins MISO, MOSI, INT_N, IO2, IO3, SPIM_SCLK, SPIM_SS_N, SPIM_MOSI, SPIM_MISO, SPIM_IO2, SPIM_IO3
-    GPIO3: int  # high or low level of pin GPIO3
-    GPIO2: int  # high or low level of pin GPIO2
-    GPIO1: int  # high or low level of pin GPIO1
-    GPIO0: int  # high or low level of pin GPIO0
+    disp: int   # high or low level of pin DISP
+    gpio: int   # drive strength settings for pins GPIO0,GPIO1, GPIO2, GPIO3, CTP_RST_N
+    lcd: int    # drive strength settings for pins PCLK, DISP, VSYNC, HSYNC, DE, R, G, B, BACKLIGHT
+    spi: int    # drive Strength Setting for pins MISO, MOSI, INT_N, IO2, IO3, SPIM_SCLK, SPIM_SS_N, SPIM_MOSI, SPIM_MISO, SPIM_IO2, SPIM_IO3
+    gpio3: int  # high or low level of pin GPIO3
+    gpio2: int  # high or low level of pin GPIO2
+    gpio1: int  # high or low level of pin GPIO1
+    gpio0: int  # high or low level of pin GPIO0
     addr = 0x30209c
     bits = 16
 
-    DISP_str = REG_GPIO.DISP_str
-    GPIO_str = REG_GPIO.GPIO_str
-    LCD_str  = REG_GPIO.LCD_str
-    SPI_str  = REG_GPIO.SPI_str
+    disp_str = REG_GPIO.disp_str
+    gpio_str = REG_GPIO.gpio_str
+    lcd_str  = REG_GPIO.lcd_str
+    spi_str  = REG_GPIO.spi_str
 
     @property
-    def GPIO3_str (self) -> str:
-        return self._pin_level_str(self.GPIO3)
+    def gpio3_str (self) -> str:
+        return self._pin_level_str(self.gpio3)
 
     @property
-    def GPIO2_str (self) -> str:
-        return self._pin_level_str(self.GPIO2)
+    def gpio2_str (self) -> str:
+        return self._pin_level_str(self.gpio2)
 
-    GPIO1_str = REG_GPIO.GPIO1_str
-    GPIO0_str = REG_GPIO.GPIO0_str
+    gpio1_str = REG_GPIO.gpio1_str
+    gpio0_str = REG_GPIO.gpio0_str
 
 @dataclass
 class REG_INT_FLAGS (Reg):
@@ -624,11 +632,19 @@ class REG_PLAYBACK_START (Reg):
     addr = 0x3020b4
     bits = 20
 
+    @property
+    def val_str (self) -> str:
+        return self._addr_str(self.val)
+
 @dataclass
 class REG_PLAYBACK_LENGTH (Reg):
     '''Audio playback sample length (bytes).'''
     addr = 0x3020b8
     bits = 20
+
+    @property
+    def val_str (self) -> str:
+        return self._size_str(self.val)
 
 @dataclass
 class REG_PLAYBACK_READPTR (Reg):
@@ -636,17 +652,32 @@ class REG_PLAYBACK_READPTR (Reg):
     addr = 0x3020bc
     bits = 20
 
+    @property
+    def val_str (self) -> str:
+        return self._addr_str(self.val)
+
 @dataclass
 class REG_PLAYBACK_FREQ (Reg):
-    '''Audio playback sampling frequency (Hz).'''
+    '''Audio playback sampling frequency.'''
     addr = 0x3020c0
     bits = 16
+
+    @property
+    def val_str (self) -> str:
+        return self._freq_str(self.val)
 
 @dataclass
 class REG_PLAYBACK_FORMAT (Reg):
     '''Audio playback format.'''
     addr = 0x3020c4
     bits = 2
+
+    @property
+    def val_str (self) -> str:
+        if   self.val == 0b00: return 'Linear'
+        elif self.val == 0b01: return 'uLaw'
+        elif self.val == 0b10: return '4 bit IMA ADPCM'
+        else                 : return ''
 
 @dataclass
 class REG_PLAYBACK_LOOP (Reg):
@@ -666,11 +697,19 @@ class REG_PWM_HZ (Reg):
     addr = 0x3020d0
     bits = 14
 
+    @property
+    def val_str (self) -> str:
+        return self._freq_str(self.val)
+
 @dataclass
 class REG_PWM_DUTY (Reg):
     '''BACKLIGHT PWM output duty cycle.'''
     addr = 0x3020d4
     bits = 8
+
+    @property
+    def val_str (self) -> str:
+        return '{:.1f}%'.format(self.val/128)
 
 @dataclass
 class REG_MACRO_0 (Reg):
@@ -690,11 +729,19 @@ class REG_CMD_READ (Reg):
     addr = 0x3020f8
     bits = 12
 
+    @property
+    def val_str (self) -> str:
+        return self._addr_str(self.val)
+
 @dataclass
 class REG_CMD_WRITE (Reg):
     '''Command buffer write pointer.'''
     addr = 0x3020fc
     bits = 12
+
+    @property
+    def val_str (self) -> str:
+        return self._addr_str(self.val)
 
 @dataclass
 class REG_CMD_DL (Reg):
@@ -702,47 +749,107 @@ class REG_CMD_DL (Reg):
     addr = 0x302100
     bits = 13
 
+    @property
+    def val_str (self) -> str:
+        if 0 <= self.val <= memmap.RAM_DL.size - 1:
+            return self._hex_str(memmap.RAM_DL.begin + self.val)
+        else:
+            return ''
+
 @dataclass
-class REG_TOUCH_MODE (Reg):
+class _REG_104 (Reg):
     '''Touch-screen sampling mode.'''
     addr = 0x302104
     bits = 2
 
+    @property
+    def name_ (self) -> str:
+        return self._tsel('REG_TOUCH_MODE', 'REG_CTOUCH_MODE', '')
+
+    @property
+    def val_str (self) -> str:
+        if   self.val == 0b00: return self._tsel('off'         , 'off', '')
+        elif self.val == 0b01: return self._tsel('single'      , ''   , '')
+        elif self.val == 0b10: return self._tsel('frame'       , ''   , '')
+        elif self.val == 0b11: return self._tsel('continuouson', 'on' , '')
+        else                 : return ''
+
+REG_TOUCH_MODE  = _REG_104
+REG_CTOUCH_MODE = _REG_104
+
 @dataclass
-class REG_TOUCH_ADC_MODE (Reg):
-    '''Set Touch ADC mode / Set capacitive touch operation mode.'''
+class _REG_108 (Reg):
+    '''Set touch ADC mode / Set capacitive touch operation mode.'''
     addr = 0x302108
     bits = 1
 
     @property
     def name_ (self) -> str:
-        return super().name_ + '/REG_CTOUCH_EXTENDED'
+        return self._tsel('REG_TOUCH_ADC_MODE', 'REG_CTOUCH_EXTENDED', '')
+
+    @property
+    def val_str (self) -> str:
+        if   self.val == 0: return self._tsel('single ended', 'extended'     , '')
+        elif self.val == 1: return self._tsel('differential', 'compatibility', '')
+        else              : return ''
+
+REG_TOUCH_ADC_MODE  = _REG_108
+REG_CTOUCH_EXTENDED = _REG_108
 
 @dataclass
-class REG_TOUCH_CHARGE (Reg):
+class _REG_104 (Reg):
     '''Touch charge time.'''
     addr = 0x30210c
     bits = 16
 
     @property
     def name_ (self) -> str:
-        return super().name_ + '/REG_EHOST_TOUCH_X'
+        return self._tsel('REG_TOUCH_CHARGE', '', 'REG_EHOST_TOUCH_X')
+
+    @property
+    def val_str (self) -> str:
+        return self._tsel('{} clock cycles'.format(self.val*6),
+                          '',
+                          str(self.val))
+
+REG_TOUCH_CHARGE     = _REG_10c
+REG_CTOUCH_TOUCH1_XY = _REG_10c
 
 @dataclass
 class REG_TOUCH_SETTLE (Reg):
-    '''Touch settle time / Touch host mode: touch x value updated by host.'''
+    '''Touch settle time.'''
     addr = 0x302110
     bits = 4
 
+    @property
+    def val_str (self) -> str:
+        return '{} clock cycles'.format(self.val*6)
+
 @dataclass
-class REG_TOUCH_OVERSAMPLE (Reg):
-    '''Touch oversample factor / Touch host mode:touch ID.'''
+class _REG_114 (Reg):
+    '''Touch oversample factor / Touch host mode: touch ID.'''
     addr = 0x302114
     bits = 4
 
     @property
     def name_ (self) -> str:
-        return super().name_ + '/REG_EHOST_TOUCH_ID'
+        return self._tsel('REG_TOUCH_OVERSAMPLE', '', 'REG_EHOST_TOUCH_ID')
+
+    @property
+    def val_str (self) -> str:
+        if    1 <= self.val <=  5: accuracy = 'low accuracy'
+        elif  6 <= self.val <= 10: accuracy = 'medium accuracy'
+        elif 11 <= self.val <= 15: accuracy = 'high accuracy'
+        else                     : accuracy = ''
+
+        if   0 <= self.val <= 4: touch = f'touch #{self.val}'
+        elif self.val == 0xf   : touch = 'done'
+        else                   : touch = ''
+
+        return self._tsel(accuracy, '', touch)
+
+REG_TOUCH_OVERSAMPLE = _REG_114
+REG_EHOST_TOUCH_ID   = _REG_114
 
 @dataclass
 class REG_TOUCH_RZTHRESH (Reg):
@@ -752,17 +859,30 @@ class REG_TOUCH_RZTHRESH (Reg):
 
     @property
     def name_ (self) -> str:
-        return super().name_ + '/REG_EHOST_TOUCH_Y'
+        return self._tsel('REG_TOUCH_RZTHRESH', '', 'REG_EHOST_TOUCH_Y')
+
+    @property
+    def val_str (self) -> str:
+        v = str(self.val)
+        return self._tsel(v, '', v)
+
+REG_TOUCH_RZTHRESH = _REG_118
+REG_EHOST_TOUCH_Y  = _REG_118
 
 @dataclass
-class REG_TOUCH_RAW_XY (Reg):
+class _REG_11c (Reg):
     '''Touch-screen raw / Touch-screen screen data for touch 1.'''
+    x: int  # raw X coordinates
+    y: int  # raw Y coordinates
     addr = 0x30211c
     bits = 32
 
     @property
     def name_ (self) -> str:
-        return super().name_ + '/REG_CTOUCH_TOUCH1_XY'
+        return self._tsel('REG_TOUCH_RAW_XY', 'REG_CTOUCH_TOUCH1_XY', '')
+
+REG_TOUCH_RAW_XY     = _REG_11c
+REG_CTOUCH_TOUCH1_XY = _REG_11c
 
 @dataclass
 class REG_TOUCH_RZ (Reg):

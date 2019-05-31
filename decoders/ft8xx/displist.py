@@ -186,8 +186,7 @@ class BITMAP_SIZE_H (Command):
 
 @dataclass
 class BITMAP_SOURCE (Command):
-    '''Specify the source address of bitmap data in BT815/6 graphics memmap
-       RAM_G or flash memmap.'''
+    '''Specify the source address of bitmap data in BT815/6 graphics memmap RAM_G or flash memmap.'''
     addr: int
 
     @property
@@ -196,7 +195,7 @@ class BITMAP_SOURCE (Command):
         if self.addr & 0x800000:
             return '{0}@{1}'.format(4*(self.addr - 0x800000), s)
         else:
-            return s
+            return self._addr_str(self.addr)
 
 @dataclass
 class BITMAP_SWIZZLE (Command):
