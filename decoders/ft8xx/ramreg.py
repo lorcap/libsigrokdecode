@@ -65,6 +65,10 @@ class Reg (annotation.Command):
         elif strength == 0b11: return '20mA'
         else                 : return ''
 
+    @property
+    def _transform_str (self) -> str:
+        return str(self.val/2**16)
+
 def at (addr: int) -> Reg:
     '''Find register name at the given address.'''
     if not memmap.RAM_REG.contains(addr):
@@ -902,29 +906,51 @@ REG_TOUCH_RAW_XY_REG_CTOUCH_TOUCH1_XY = _combine(REG_TOUCH_RAW_XY, REG_CTOUCH_TO
 
 @dataclass
 class REG_TOUCH_RZ (Reg):
-    '''Touch-screen resistance / Touch-screen screen Y data for touch 4.'''
+    '''Touch-screen resistance'''
     addr = 0x302120
     bits = 16
 
-    @property
-    def name_ (self) -> str:
-        return super().name_ + '/REG_CTOUCH_TOUCH4_Y'
+@dataclass
+class REG_CTOUCH_TOUCH4_Y (Reg):
+    '''Touch-screen screen Y data for touch 4.'''
+    addr = 0x302120
+    bits = 16
+
+REG_TOUCH_RZ_REG_CTOUCH_TOUCH4_Y = _combine(REG_TOUCH_RZ, REG_CTOUCH_TOUCH4_Y)
 
 @dataclass
 class REG_TOUCH_SCREEN_XY (Reg):
-    '''Touch-screen screen / Touch-screen screen data for touch 0.'''
+    '''Touch-screen screen.'''
     addr = 0x302124
     bits = 32
 
-    @property
-    def name_ (self) -> str:
-        return super().name_ + '/REG_CTOUCH_TOUCH0_XY'
+@dataclass
+class REG_CTOUCH_TOUCH0_XY (Reg):
+    '''Touch-screen screen data for touch 0.'''
+    x: int  # raw X coordinates
+    y: int  # raw Y coordinates
+    addr = 0x302124
+    bits = 32
+
+REG_TOUCH_SCREEN_XY_REG_CTOUCH_TOUCH0_XY = _combine(REG_TOUCH_SCREEN_XY, REG_CTOUCH_TOUCH0_XY)
 
 @dataclass
-class REG_TAG_XY (Reg):
+class REG_TOUCH_TAG_XY (Reg):
     '''Touch-screen screen used for tag 0 lookup.'''
+    x: int  # X coordinates
+    y: int  # Y coordinates
     addr = 0x302128
     bits = 32
+
+@dataclass
+class  REG_CTOUCH_TAG_XY (Reg):
+    '''Coordinate used to calculate the tag of first touch point.'''
+    x: int  # X coordinates
+    y: int  # Y coordinates
+    addr = 0x302128
+    bits = 32
+
+REG_TAG_XY_REG_CTOUCH_TAG_XY = _combine(REG_TAG_XY, REG_CTOUCH_TAG_XY)
 
 @dataclass
 class REG_TOUCH_TAG (Reg):
@@ -933,50 +959,64 @@ class REG_TOUCH_TAG (Reg):
     bits = 8
 
 @dataclass
-class REG_TOUCH_TAG1_XY (Reg):
-    '''Touch-screen screen used for tag 1 lookup.'''
+class REG_CTOUCH_TAG (Reg):
+    '''Touch screen tag result of fist touch point'''
+    addr = 0x30212c
+    bits = 8
+
+@dataclass
+class REG_CTOUCH_TAG1_XY (Reg):
+    '''XY used to tag of second touch point.'''
+    x: int  # X coordinates
+    y: int  # Y coordinates
     addr = 0x302130
     bits = 32
 
 @dataclass
-class REG_TOUCH_TAG1 (Reg):
-    '''Touch-screen tag result 1.'''
+class REG_CTOUCH_TAG1 (Reg):
+    '''Tag result of second touch point.'''
     addr = 0x302134
     bits = 8
 
 @dataclass
-class REG_TOUCH_TAG2_XY (Reg):
+class REG_CTOUCH_TAG2_XY (Reg):
     '''Touch-screen screen used for tag 2 lookup.'''
+    x: int  # X coordinates
+    y: int  # Y coordinates
     addr = 0x302138
     bits = 32
 
 @dataclass
-class REG_TOUCH_TAG2 (Reg):
-    '''Touch-screen tag result 2.'''
+class REG_CTOUCH_TAG2 (Reg):
+    '''Tag result of third touch point.'''
     addr = 0x30213c
     bits = 8
 
 @dataclass
-class REG_TOUCH_TAG3_XY (Reg):
-    '''Touch-screen screen used for tag 3 lookup.'''
+class REG_CTOUCH_TAG3_XY (Reg):
+    '''XY used to tag of fourth touch point.'''
+    x: int  # X coordinates
+    y: int  # Y coordinates
     addr = 0x302140
     bits = 32
 
 @dataclass
-class REG_TOUCH_TAG3 (Reg):
-    '''Touch-screen tag result 3.'''
+class REG_CTOUCH_TAG3 (Reg):
+    '''Tag result of fourth touch point.'''
     addr = 0x302144
     bits = 8
 
 @dataclass
-class REG_TOUCH_TAG4_XY (Reg):
-    '''Touch-screen screen used for tag 4 lookup.'''
+class REG_CTOUCH_TAG4_XY (Reg):
+    '''XY used to tag of fifth touch point.'''
+    x: int  # X coordinates
+    y: int  # Y coordinates
     addr = 0x302148
     bits = 32
 
 @dataclass
-class REG_TOUCH_TAG4 (Reg):
-    '''Touch-screen tag result 4.'''
+class REG_CTOUCH_TAG4 (Reg):
+    '''Tag result of fifth touch point.'''
     addr = 0x30214c
     bits = 8
 
@@ -986,11 +1026,15 @@ class REG_TRANSFORM_A (Reg):
     addr = 0x302150
     bits = 32
 
+    val_str = self._transform_str()
+
 @dataclass
 class REG_TRANSFORM_B (Reg):
     '''Touch-screen transform coefficient.'''
     addr = 0x302154
     bits = 32
+
+    val_str = self._transform_str()
 
 @dataclass
 class REG_TRANSFORM_C (Reg):
@@ -998,11 +1042,15 @@ class REG_TRANSFORM_C (Reg):
     addr = 0x302158
     bits = 32
 
+    val_str = self._transform_str()
+
 @dataclass
 class REG_TRANSFORM_D (Reg):
     '''Touch-screen transform coefficient.'''
     addr = 0x30215c
     bits = 32
+
+    val_str = self._transform_str()
 
 @dataclass
 class REG_TRANSFORM_E (Reg):
@@ -1010,11 +1058,15 @@ class REG_TRANSFORM_E (Reg):
     addr = 0x302160
     bits = 32
 
+    val_str = self._transform_str()
+
 @dataclass
 class REG_TRANSFORM_F (Reg):
     '''Touch-screen transform coefficient.'''
     addr = 0x302164
     bits = 32
+
+    val_str = self._transform_str()
 
 @dataclass
 class REG_TOUCH_CONFIG (Reg):
