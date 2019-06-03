@@ -67,7 +67,10 @@ class Reg (annotation.Command):
 
     @property
     def _transform_str (self) -> str:
-        return str(self.val/2**16)
+        s = '-' if self.val & 0x8000_0000 else ''
+        i = (self.val >> 16) & 0x7fff
+        d = (self.val >>  0) & 0xffff
+        return f'{s}{i}.{d}'
 
 def at (addr: int) -> Reg:
     '''Find register name at the given address.'''
@@ -912,7 +915,7 @@ class REG_TOUCH_RZ (Reg):
 
 @dataclass
 class REG_CTOUCH_TOUCH4_Y (Reg):
-    '''Touch-screen screen Y data for touch 4.'''
+    '''Y coordinate of fifth touch point.'''
     addr = 0x302120
     bits = 16
 
@@ -926,7 +929,7 @@ class REG_TOUCH_SCREEN_XY (Reg):
 
 @dataclass
 class REG_CTOUCH_TOUCH0_XY (Reg):
-    '''Touch-screen screen data for touch 0.'''
+    '''Coordinate of first touch point.'''
     x: int  # raw X coordinates
     y: int  # raw Y coordinates
     addr = 0x302124
@@ -1071,12 +1074,35 @@ class REG_TRANSFORM_F (Reg):
 @dataclass
 class REG_TOUCH_CONFIG (Reg):
     '''Touch configuration.'''
+    touch:     bool # working mode of touch engine
+    host:      bool # enable the host mode
+    ignore_short_circuit: bool
+    low_power: bool # enable low-power mode
+    I2C_addr:  int  # I2C address of touch screen module
+    vendor:    bool # vendor of the capacitive touch screen
+    suppress_300ms: bool
+    clocks:    int  # sampler clocks
     addr = 0x302168
     bits = 16
 
+    @property
+    def touch_str (self) -> str:
+        return 'resistive' if self.touch else 'capacitive'
+
+    @property
+    def I2C_addr_str (self) -> str:
+        if   0x38 <= self.I2C_addr <= 0x3f: return 'Focaltech'
+        elif self.I2C_addr == 0x5d        : return 'Goodix'
+        else                              : return '(uknown)'
+
+    @property
+    def vendor_str (self) -> str:
+        return 'FocalTech/Goodix' if self.vendor == 0 else ''
+
 @dataclass
 class REG_CTOUCH_TOUCH4_X (Reg):
-    '''Touch-screen screen X data for touch 4.'''
+    '''X coordinate of fifth touch point.'''
+    x: int  # X coordinates
     addr = 0x30216c
     bits = 16
 
@@ -1106,26 +1132,36 @@ class REG_ANA_COMP (Reg):
 
 @dataclass
 class REG_SPI_WIDTH (Reg):
+    '''QSPI bus width setting.'''
+    extra_dummy: bool   # extra dummy cycle on read
+    width: int          # bus width
     addr = 0x302188
     bits = 3
 
+    @property
+    def width_str (self) -> str:
+        if   self.width == 0: return '1-bit'
+        elif self.width == 1: return '2-bit'
+        elif self.width == 2: return '4-bit'
+        else                : return ''
+
 @dataclass
 class REG_TOUCH_DIRECT_XY (Reg):
+    '''Touch screen direct conversions.'''
+    x: int  # X coordinates
+    y: int  # Y coordinates
     addr = 0x30218c
     bits = 32
 
-    @property
-    def name_ (self) -> str:
-        return super().name_ + '/REG_CTOUCH_TOUCH2_XY'
-
 @dataclass
-class REG_TOUCH_DIRECT_Z1Z2 (Reg):
-    addr = 0x302190
+class REG_CTOUCH_TOUCH3_XY (Reg):
+    '''Fourth touch point coordinate.'''
+    x: int  # raw X coordinates
+    y: int  # raw Y coordinates
+    addr = 0x30218c
     bits = 32
 
-    @property
-    def name_ (self) -> str:
-        return super().name_ + '/REG_CTOUCH_TOUCH3_XY'
+REG_TOUCH_DIRECT_XY_REG_CTOUCH_TOUCH3_XY = _combine(REG_TOUCH_DIRECT_XY, REG_CTOUCH_TOUCH3_XY)
 
 @dataclass
 class REG_DATESTAMP (Reg):
@@ -1156,4 +1192,12 @@ class REG_PLAYBACK_PAUSE (Reg):
 class REG_FLASH_STATUS (Reg):
     addr = 0x3025f0
     bits = 2
+
+    @property
+    def val_str (self) -> str:
+        if   self.val == 0b00: return 'init'
+        elif self.val == 0b01: return 'detached'
+        elif self.val == 0b10: return 'basic'
+        elif self.val == 0b11: return 'full'
+        else                 : return ''
 

@@ -244,7 +244,7 @@ class Command (annotation.Command):
     def ptr_ramreg_str (self) -> str:
         if not memmap.RAM_REG.contains(self.ptr.val):
             self._warning = warning.Message('not a RAM_REG address')
-        return self._hex_str(self.ptr.val)
+        return ramreg.at(self.ptr.val)
 
     @property
     def result_ptr (self) -> str:
