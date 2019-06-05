@@ -17,49 +17,30 @@
 ## along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
+import dataclasses
+from dataclasses import dataclass
+
+@dataclass
 class Space:
     '''Memory space.'''
+    begin: int  # begin address (inclusive)
+    end: int    # end address (inclusive)
+    size: int = dataclasses.field(init=False)
 
-    @property
-    def size (self) -> int:
-        '''Size of the memory space.'''
-        return self.end - self.begin
+    def __post_init__ (self):
+        self.size = self.end - self.begin
 
-    @classmethod
-    def contains (cls, addr: int) -> bool:
-        return cls.begin <= addr <= cls.end
+    def contains (self, addr: int) -> bool:
+        return self.begin <= addr <= self.end
 
-class RAM_G (Space):
-    begin: int = 0x000000
-    end  : int = 0x0fffff
-
-class ROM_FONT (Space):
-    begin: int = 0x1e0000
-    end  : int = 0x2ffffb
-
-class ROM_FONT_ADDR (Space):
-    begin: int = 0x2ffffc
-    end  : int = 0x2fffff
-
-class RAM_DL (Space):
-    begin: int = 0x300000
-    end  : int = 0x301fff
-
-class RAM_REG (Space):
-    begin: int = 0x302000
-    end  : int = 0x302fff
-
-class RAM_CMD (Space):
-    begin: int = 0x308000
-    end  : int = 0x308fff
-
-class RAM_ERR_REPORT (Space):
-    begin: int = 0x309800
-    end  : int = 0x3098ff
-
-class FLASH (Space):
-    begin: int = 0x800000
-    end  : int = 0x107fffff
+RAM_G          = Space(begin=0x000000, end=  0x0fffff)
+ROM_FONT       = Space(begin=0x1e0000, end=  0x2ffffb)
+ROM_FONT_ADDR  = Space(begin=0x2ffffc, end=  0x2fffff)
+RAM_DL         = Space(begin=0x300000, end=  0x301fff)
+RAM_REG        = Space(begin=0x302000, end=  0x302fff)
+RAM_CMD        = Space(begin=0x308000, end=  0x308fff)
+RAM_ERR_REPORT = Space(begin=0x309800, end=  0x3098ff)
+FLASH          = Space(begin=0x800000, end=0x107fffff)
 
 def space (addr: int) -> str:
     if   RAM_G         .contains(addr): return 'RAM_G'
