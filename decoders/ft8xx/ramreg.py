@@ -21,7 +21,7 @@
 
 from dataclasses import dataclass, make_dataclass
 from typing import List
-from . import annotation, warning
+from . import annotation, memmap, warning
 
 @dataclass
 class Reg (annotation.Command):
@@ -79,7 +79,7 @@ def at (addr: int) -> Reg:
     if addr % 4:
         return None
 
-    ramreg = __import__(__name__).__dict__ # this module's objects
+    ramreg = __import__(__name__).__dict__['ramreg'].__dict__ # this module's objects
     for reg in [obj for name,obj in  ramreg.items() if name.startswith('REG_')]:
         if addr == reg.addr:
             return reg
@@ -479,11 +479,13 @@ class REG_SOUND (Reg):
 
     @property
     def val_str (self) -> str:
-        s = sound[(self.val >> 8) & 0xff]
-        n = note [(self.val >> 0) & 0xff]
-        ret = repr(s)
-        if s.pitch_adjust:
-            ret += ', Note=' + n
+        try:
+            s = sound[(self.val >> 8) & 0xff]
+            ret = repr(s)
+            if s.pitch_adjust:
+                ret += ', Note=' + note[(self.val >> 0) & 0xff]
+        except KeyError:
+            ret = ''
         return ret
 
 @dataclass
@@ -953,7 +955,7 @@ class  REG_CTOUCH_TAG_XY (Reg):
     addr = 0x302128
     bits = 32
 
-REG_TAG_XY_REG_CTOUCH_TAG_XY = _combine(REG_TAG_XY, REG_CTOUCH_TAG_XY)
+REG_TOUCH_TAG_XY_REG_CTOUCH_TAG_XY = _combine(REG_TOUCH_TAG_XY, REG_CTOUCH_TAG_XY)
 
 @dataclass
 class REG_TOUCH_TAG (Reg):
@@ -1029,7 +1031,7 @@ class REG_TRANSFORM_A (Reg):
     addr = 0x302150
     bits = 32
 
-    val_str = self._transform_str()
+    val_str = Reg._transform_str
 
 @dataclass
 class REG_TRANSFORM_B (Reg):
@@ -1037,7 +1039,7 @@ class REG_TRANSFORM_B (Reg):
     addr = 0x302154
     bits = 32
 
-    val_str = self._transform_str()
+    val_str = Reg._transform_str
 
 @dataclass
 class REG_TRANSFORM_C (Reg):
@@ -1045,7 +1047,7 @@ class REG_TRANSFORM_C (Reg):
     addr = 0x302158
     bits = 32
 
-    val_str = self._transform_str()
+    val_str = Reg._transform_str
 
 @dataclass
 class REG_TRANSFORM_D (Reg):
@@ -1053,7 +1055,7 @@ class REG_TRANSFORM_D (Reg):
     addr = 0x30215c
     bits = 32
 
-    val_str = self._transform_str()
+    val_str = Reg._transform_str
 
 @dataclass
 class REG_TRANSFORM_E (Reg):
@@ -1061,7 +1063,7 @@ class REG_TRANSFORM_E (Reg):
     addr = 0x302160
     bits = 32
 
-    val_str = self._transform_str()
+    val_str = Reg._transform_str
 
 @dataclass
 class REG_TRANSFORM_F (Reg):
@@ -1069,7 +1071,7 @@ class REG_TRANSFORM_F (Reg):
     addr = 0x302164
     bits = 32
 
-    val_str = self._transform_str()
+    val_str = Reg._transform_str
 
 @dataclass
 class REG_TOUCH_CONFIG (Reg):

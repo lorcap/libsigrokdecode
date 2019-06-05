@@ -20,6 +20,7 @@
 import dataclasses
 from dataclasses import dataclass
 from typing import List
+from . import memmap
 
 class Id:
     '''Annotation IDs.'''
@@ -53,7 +54,7 @@ class Annotation:
     @staticmethod
     def _addr_str (val: int) -> str:
         '''Uniform representation of a memory address.'''
-        s = memmap.space(self.addr)
+        s = memmap.space(val)
         return s if s else '(unknown space)'
 
     @staticmethod
@@ -75,7 +76,7 @@ class Annotation:
     @staticmethod
     def _int_str (val: int) -> str:
         '''Uniform representation of an integer.'''
-        return str(val) if val < 10 else f'{self._dec_str(val)} [{self._hex_str(val)}]'
+        return str(val) if val < 10 else f'{Annotation._dec_str(val)} [{Annotation._hex_str(val)}]'
 
     @staticmethod
     def _par_str (val: int, name: str='', desc: str='') -> str:
@@ -91,7 +92,7 @@ class Annotation:
             return int_str
 
     @staticmethod
-    def _size_str (size: int) -> str:
+    def _size_str (val: int) -> str:
         '''Uniform representation of size parameters.'''
         if   val >= 1024**2: return '{:.1f}'.format(val/1024**2) + 'MiB'
         elif val >= 1024**1: return '{:.1f}'.format(val/1024**1) + 'KiB'
