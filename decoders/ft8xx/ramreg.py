@@ -926,6 +926,8 @@ REG_TOUCH_RZ_REG_CTOUCH_TOUCH4_Y = _combine(REG_TOUCH_RZ, REG_CTOUCH_TOUCH4_Y)
 @dataclass
 class REG_TOUCH_SCREEN_XY (Reg):
     '''Touch-screen screen.'''
+    x: int  # X coordinates
+    y: int  # Y coordinates
     addr = 0x302124
     bits = 32
 
@@ -1080,7 +1082,7 @@ class REG_TOUCH_CONFIG (Reg):
     host:      bool # enable the host mode
     ignore_short_circuit: bool
     low_power: bool # enable low-power mode
-    I2C_addr:  int  # I2C address of touch screen module
+    i2c_addr:  int  # I2C address of touch screen module
     vendor:    bool # vendor of the capacitive touch screen
     suppress_300ms: bool
     clocks:    int  # sampler clocks
@@ -1150,20 +1152,33 @@ class REG_SPI_WIDTH (Reg):
 @dataclass
 class REG_TOUCH_DIRECT_XY (Reg):
     '''Touch screen direct conversions.'''
-    x: int  # X coordinates
-    y: int  # Y coordinates
+    touch: bool
+    adc_z1: int  # 10 bit ADC value for touch screen resistance Z1
+    adc_z2: int  # 10 bit ADC value for touch screen resistance Z2
     addr = 0x30218c
     bits = 32
 
+    @property
+    def touch_str (self) -> str:
+        return 'none' if self.touch else 'sensed';
+
 @dataclass
-class REG_CTOUCH_TOUCH3_XY (Reg):
+class REG_CTOUCH_TOUCH2_XY (Reg):
     '''Fourth touch point coordinate.'''
     x: int  # raw X coordinates
     y: int  # raw Y coordinates
     addr = 0x30218c
     bits = 32
 
-REG_TOUCH_DIRECT_XY_REG_CTOUCH_TOUCH3_XY = _combine(REG_TOUCH_DIRECT_XY, REG_CTOUCH_TOUCH3_XY)
+REG_TOUCH_DIRECT_XY_REG_CTOUCH_TOUCH2_XY = _combine(REG_TOUCH_DIRECT_XY, REG_CTOUCH_TOUCH2_XY)
+
+@dataclass
+class REG_CTOUCH_TOUCH3_XY (Reg):
+    '''Fourth touch point coordinate.'''
+    x: int  # raw X coordinates
+    y: int  # raw Y coordinates
+    addr = 0x302190
+    bits = 32
 
 @dataclass
 class REG_DATESTAMP (Reg):

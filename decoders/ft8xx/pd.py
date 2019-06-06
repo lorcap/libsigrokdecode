@@ -379,9 +379,39 @@ class Fsm:
                 reg = Reg(*u32, disp=u32[15], gpio=u32[14:13], lcd=u32[12],
                                 spi=u32[11:10], gpio3=u32[3], gpio2=u32[2],
                                                 gpio1=u32[1], gpio0=u32[0])
-            elif name == ('REG_TOUCH_RAW_XY',
-                          'REG_TOUCH_SCREEN_XY', 'REG_CTOUCH_TOUCH1_XY'):
+            elif name in ('REG_TOUCH_RAW_XY',
+                          'REG_TOUCH_SCREEN_XY',
+                          'REG_TOUCH_TAG_XY',
+                          'REG_CTOUCH_TOUCH0_XY',
+                          'REG_CTOUCH_TOUCH1_XY',
+                          'REG_CTOUCH_TOUCH2_XY',
+                          'REG_CTOUCH_TOUCH3_XY',
+                          'REG_CTOUCH_TAG_XY',
+                          'REG_CTOUCH_TAG1_XY',
+                          'REG_CTOUCH_TAG2_XY',
+                          'REG_CTOUCH_TAG3_XY',
+                          'REG_CTOUCH_TAG4_XY',
+                          'REG_TOUCH_RAW_XY_REG_CTOUCH_TOUCH1_XY',
+                          'REG_TOUCH_SCREEN_XY_REG_CTOUCH_TOUCH0_XY',
+                          'REG_TOUCH_TAG_XY_REG_CTOUCH_TAG_XY'):
                 reg = Reg(*u32, x=u32[31:16], y=u32[15:0])
+            elif name == 'REG_TOUCH_CONFIG':
+                reg = Reg(*u32, touch=u32[15], host=u32[14],
+                                ignore_short_circuit=u32[12],
+                                low_power=u32[11], i2c_addr=u32[10:4],
+                                vendor=u32[3], suppress_300ms=u32[2],
+                                clocks=u32[1:0])
+            elif name == 'REG_CTOUCH_TOUCH4_X':
+                reg = Reg(*u32, x=u32[15:0])
+            elif name == 'REG_SPI_WIDTH':
+                reg = Reg(*u32, extra_dummy=u32[2], width=u32[1:0])
+            elif name == 'REG_CTOUCH_TOUCH4_Y':
+                reg = Reg(*u32, y=u32[15:0])
+            elif name == 'REG_TOUCH_DIRECT_XY':
+                reg = Reg(*u32, touch=u32[31], adc_z1=u32[25:16], adc_z2=u32[9:0])
+            elif name == 'REG_TOUCH_DIRECT_XY_REG_CTOUCH_TOUCH2_XY':
+                reg = Reg(*u32, touch=u32[31], adc_z1=u32[25:16], adc_z2=u32[9:0],
+                                x=u32[31:16], y=u32[15:0])
             else:
                 reg = Reg(*u32)
         else:
@@ -596,6 +626,11 @@ class Decoder (srd.Decoder):
     license = 'gplv2+'
     inputs = ['spi']
     outputs = ['ft8xx']
+    options = (
+         {'id': 'chip',
+          'desc': 'Chip family',
+          'default': 'any',
+          'values': ('any', 'FT80x', 'FT81x', 'BT81x')}),
     annotations = (
         ('command'          , 'Command'        ),
         ('coproc'           , 'CoProc'         ),
