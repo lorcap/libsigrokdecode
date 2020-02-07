@@ -17,7 +17,7 @@
 ## along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-from typing import List
+from typing import List, Tuple
 from dataclasses import dataclass
 from . import annotation, memmap, warning
 
@@ -69,6 +69,10 @@ class Command (annotation.Command):
 
         par_str = '; '.join(str_list)
         return [f'{self.name_}({par_str})']
+
+    @property
+    def byte_str (self) -> str:
+        return 'bytes'
 
     @property
     def ch_str (self) -> str:
@@ -244,7 +248,7 @@ class Command (annotation.Command):
     def ptr_ramreg_str (self) -> str:
         if not memmap.RAM_REG.contains(self.ptr.val):
             self._warning = warning.Message('not a RAM_REG address')
-        return ramreg.at(self.ptr.val)
+        return self._hex_str(self.ptr.val)
 
     @property
     def result_ptr (self) -> str:
@@ -310,10 +314,11 @@ class Command (annotation.Command):
     def w_str (self) -> str:
         return f'{self.w.val}px'
 
+# ------------------------------------------------------------------------- #
+
 @dataclass
-class Parameter (annotation.Annotation):
-    '''Base class for all integer parameters.'''
-    val: int    # raw value
+class _Parameter (annotation.Annotation):
+    '''Base class for all parameters.'''
 
     @property
     def id_ (self) -> int:
@@ -321,32 +326,75 @@ class Parameter (annotation.Annotation):
 
     @property
     def strings_ (self) -> List[str]:
-        return [self.name_.lower() + '_t: ' + self._int_str(self.val)]
+        return [self.name_ + ': ' + self.val_]
 
 @dataclass
-class Int16 (Parameter):
-    '''Parameter of type `int16_t`.'''
-    pass
+class Data (_Parameter):
+    '''Parameter of type `data byte`.'''
+    pos : int   # position of first byte in the data stream
+    size: int   # number of bytes
 
-@dataclass
-class UInt16 (Parameter):
-    '''Parameter of type `uint16_t`.'''
-
-@dataclass
-class Int32 (Parameter):
-    '''Parameter of type `int32_t`.'''
-
-@dataclass
-class UInt32 (Parameter):
-    '''Parameter of type `uint32_t`.'''
-
-@dataclass
-class String (Parameter):
-    '''Parameter of null-terminated `const char*`.'''
+    @property
+    def name_ (self) -> str:
+        return 'byte'
 
     @property
     def strings_ (self) -> List[str]:
-        return ['const char*: ' + self.val]
+        return ['byte0..1']
+
+@dataclass
+class _Int (_Parameter):
+    '''Base class for all integer parameters.'''
+    val: int    # raw value
+
+    @property
+    def val_ (self) -> str:
+        return self._int_str(self.val)
+
+@dataclass
+class Int16 (_Int):
+    '''Parameter of type `int16_t`.'''
+
+    @property
+    def name_ (self) -> str:
+        return 'int16_t'
+
+@dataclass
+class UInt16 (_Int):
+    '''Parameter of type `uint16_t`.'''
+
+    @property
+    def name_ (self) -> str:
+        return 'uint16_t'
+
+@dataclass
+class Int32 (_Int):
+    '''Parameter of type `int32_t`.'''
+
+    @property
+    def name_ (self) -> str:
+        return 'int32_t'
+
+@dataclass
+class UInt32 (_Int):
+    '''Parameter of type `uint32_t`.'''
+
+    @property
+    def name_ (self) -> str:
+        return 'uint32_t'
+
+@dataclass
+class String (_Parameter):
+    '''Parameter of null-terminated `const char*`.'''
+    val: str    # raw value
+
+    @property
+    def name_ (self) -> str:
+        return 'const char*'
+
+    @property
+    def val_ (self) -> str:
+        return self.val
 
 # ------------------------------------------------------------------------- #
 
@@ -413,6 +461,9 @@ class CMD_MEMWRITE (Command):
     '''Write bytes into memory.'''
     ptr    : UInt32 # memory address to be written
     num    : UInt32 # number of bytes to be written
+    byte   : Tuple[Data] # data byte
+
+    byte_str = Command.byte_str
 
 @dataclass
 class CMD_INFLATE (Command):
