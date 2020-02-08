@@ -203,8 +203,8 @@ class Fsm:
 
     def read_Data (self, line, num: int, pos: int) -> coproc.Data:
         '''Read a coproc's num-long sequence of 8-bit data bytes.'''
-        ss, es, _ = (yield from self.read_data(line, num))
-        return coproc.Data(ss, es, pos, num)
+        ss, es, bytes = (yield from self.read_data(line, num))
+        return coproc.Data(ss, es, bytes, pos)
 
     def read_DataBytes (self, line, num: int) -> List[coproc.Data]:
         '''Read a coproc's sequence of 8-bit data bytes.'''

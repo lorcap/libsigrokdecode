@@ -17,7 +17,7 @@
 ## along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-from typing import List, Tuple
+from typing import ByteString, List, Tuple
 from dataclasses import dataclass
 from . import annotation, memmap, warning
 
@@ -327,18 +327,18 @@ class _Parameter (annotation.Annotation):
 @dataclass
 class Data (_Parameter):
     '''Parameter of type `data byte`.'''
-    pos : int   # position of first byte in the data stream
-    size: int   # number of bytes
+    val: ByteString # data bytes
+    pos: int        # position of first byte in the data stream
 
     @property
     def name_ (self) -> str:
-        return 'byte'
+        return f'byte{self.pos}..{self.pos + len(self.val) - 1}'\
+               if len(self.val) > 1 else f'byte{self.pos}'
 
     @property
-    def strings_ (self) -> List[str]:
-        return [f'byte{self.pos}..{self.pos + self.size - 1}'] \
-                    if self.size > 1 else [] \
-             + [f'byte{self.pos}', f'{self.pos}']
+    def val_ (self) -> str:
+        hex = [ self.val[i:i+4].hex() for i in range(0, len(self.val), 4) ]
+        return ':'.join(hex)
 
 @dataclass
 class _Int (_Parameter):
