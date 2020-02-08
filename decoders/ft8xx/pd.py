@@ -629,9 +629,39 @@ class Fsm:
             self.out = num  = (yield from self.read_UInt32     (line))
             self.out = byte = (yield from self.read_DataBytes  (line, num.val))
             self.out = pad  = (yield from self.read_DataPadding(line, num.val))
-            cmd = coproc.CMD_MEMWRITE(*u32, ptr, num, byte, pad)
+            cmd = coproc.CMD_MEMWRITE(*u32, ptr, num, byte)
 
         #-- Commands for loading data into RAM_G ---------------------------#
+        elif u32.val == 0xffffff22:
+            self.out = ptr  = (yield from self.read_UInt32     (line))
+            self.out = byte = (yield from self.read_DataBytes  (line, 10))
+            self.out = pad  = (yield from self.read_DataPadding(line, 10))
+            cmd = coproc.CMD_INFLATE(*u32, ptr, byte)
+        elif u32.val == 0xffffff50:
+            self.out = ptr  = (yield from self.read_UInt32     (line))
+            self.out = opts = (yield from self.read_UInt32     (line))
+            if opts.val & (coproc.OPT_MEDIAFIFO|coproc.OPT_FLASH):
+                byte = []
+                pad  = None
+            else:
+                self.out = byte = (yield from self.read_DataBytes  (line, 10))
+                self.out = pad  = (yield from self.read_DataPadding(line, 10))
+            cmd = coproc.CMD_INFLATE2(*u32, ptr, opts, byte)
+        elif u32.val == 0xffffff24:
+            self.out = ptr  = (yield from self.read_UInt32(line))
+            self.out = opts = (yield from self.read_UInt32(line))
+            if opts.val & (coproc.OPT_MEDIAFIFO|coproc.OPT_FLASH):
+                byte = []
+                pad  = None
+            else:
+                self.out = byte = (yield from self.read_DataBytes  (line, 69))
+                self.out = pad  = (yield from self.read_DataPadding(line, 69))
+            cmd = coproc.CMD_LOADIMAGE(*u32, ptr, opts, byte)
+        elif u32.val == 0xffffff39:
+            self.out = ptr  = (yield from self.read_UInt32(line))
+            self.out = size = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_MEDIAFIFO(*u32, ptr, size)
+
         #-- Commands for setting the bitmap transform matrix ---------------#
         #-- Commands for flash operation -----------------------------------#
         #-- Commands for video playback ------------------------------------#

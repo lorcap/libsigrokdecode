@@ -467,8 +467,7 @@ class CMD_MEMWRITE (Command):
     '''Write bytes into memory.'''
     ptr    : UInt32 # memory address to be written
     num    : UInt32 # number of bytes to be written
-    byte_  : List[Data] # data byte
-    pad_   : Padding
+    byte_  : List[Data]
 
     ptr_str = Command.ptr_ramreg_str
 
@@ -476,21 +475,21 @@ class CMD_MEMWRITE (Command):
 class CMD_INFLATE (Command):
     '''Decompress data into memory.'''
     ptr    : UInt32 # destination address in RAM_G
-    data   : int
+    data_  : List[Data]
 
 @dataclass
 class CMD_INFLATE2 (Command):
     '''Decompress data into memory.'''
     ptr    : UInt32 # destination address to put the decompressed data
     options: UInt32 #
-    data   : int
+    data_  : List[Data]
 
 @dataclass
 class CMD_LOADIMAGE (Command):
     '''Load a JPEG or PNG image.'''
     ptr    : UInt32 # destination address
     options: UInt32 #
-    data   : int
+    data_  : int
 
 @dataclass
 class CMD_MEDIAFIFO (Command):
