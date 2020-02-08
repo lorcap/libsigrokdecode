@@ -18,7 +18,7 @@
 ##
 
 import sigrokdecode as srd
-from typing import ByteString, Tuple
+from typing import ByteString, List, Tuple, Union
 from . import annotation, coproc, displist, hostcmd, memmap, memory, ramreg, warning
 
 class Int:
@@ -201,18 +201,29 @@ class Fsm:
         yield from self.read(line, count)
         return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
 
-    def read_Data (self, line, num: int) -> Tuple[coproc.Data]:
+    def read_Data (self, line, num: int, pos: int) -> coproc.Data:
+        '''Read a coproc's num-long sequence of 8-bit data bytes.'''
+        ss, es, _ = (yield from self.read_data(line, num))
+        return coproc.Data(ss, es, pos, num)
+
+    def read_DataBytes (self, line, num: int) -> List[coproc.Data]:
         '''Read a coproc's sequence of 8-bit data bytes.'''
-        data = list()
+        bytes = list()
         count = 0
         while count < num:
-            self.size = num - count
-            if self.size > 32:
-                self.size = 32
-            (ss, es, _) = (yield from self.read_data(line, self.size))
-            data.append(coproc.Data(ss, es, count, self.size))
-            count += self.size
-        return data[0] # tuple(data)
+            size = num - count
+            if size > 32:
+                size = 32
+            data = (yield from self.read_Data(line, size, count))
+            bytes.append(data)
+            count += size
+        return bytes
+
+    def read_DataPadding (self, line, num: int) -> coproc.Padding:
+        '''Read a coproc's sequence of up-to-3 padding bytes.'''
+        self.size = 4 - (num % 4)
+        ss, es, _ = (yield from self.read_data(line, self.size))
+        return coproc.Padding(ss, es)
 
     def read_Int16 (self, line) -> coproc.Int16:
         '''Read a coproc's annotated 16-bit signed integer.'''
@@ -248,7 +259,10 @@ class Fsm:
         return coproc.String(ss, es, s.decode(errors='ignore'))
 
     def read_data (self, line, num: int = 0) -> Tuple[int, int, ByteString]:
-        '''Read `num` bytes or until '\0' up to 4-byte boundary.'''
+        '''Read `num` bytes or until '\0'.'''
+        if not num:
+            return [0, 0, bytearray()]
+
         self.size = 1
         yield from self.read(line, self.size)
         ss = self.ss[-1]
@@ -262,10 +276,6 @@ class Fsm:
             count += 1
             yield from self.read(line, self.size)
         es = self.es[-1]
-
-        while count % 4:
-            yield from self.read(line, self.size)
-            count += 1
 
         return [ss, es, data]
 
@@ -305,10 +315,13 @@ class Fsm:
         return _out
 
     @out.setter
-    def out (self, out):
+    def out (self, out: Union[annotation.Annotation, List[annotation.Annotation]]):
         if not out:
             return
-        self._out.append(out)
+        elif type(out) is list:
+            self._out.extend(out)
+        else:
+            self._out.append(out)
 
     #########################################################################
 
@@ -586,6 +599,8 @@ class Fsm:
 
     def decode_coproc (self, u32: Int, line):
         '''Decode Co-Processor Engine commands.'''
+        mosi_size = self.mosi_size
+
         if u32[31:24] != 0xff:
             return None
 
@@ -597,23 +612,24 @@ class Fsm:
 
         #-- Commands to draw graphics objects ------------------------------#
         elif u32.val == 0xffffff0c:
-            x   = (yield from self.read_Int16 (line))
-            y   = (yield from self.read_Int16 (line))
-            font= (yield from self.read_Int16 (line))
-            opts= (yield from self.read_UInt16(line))
-            s   = (yield from self.read_String(line))
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = font = (yield from self.read_Int16 (line))
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = s    = (yield from self.read_String(line))
             cmd = coproc.CMD_TEXT(*u32, x, y, font, opts, s)
 
         #-- Commands to operate on memory ----------------------------------#
         elif u32.val == 0xffffff1e:
-            ptr = (yield from self.read_UInt32(line))
-            num = (yield from self.read_UInt32(line))
+            self.out = ptr  = (yield from self.read_UInt32(line))
+            self.out = num  = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_APPEND(*u32, ptr, num)
         elif u32.val == 0xffffff1a:
-            ptr = (yield from self.read_UInt32(line))
-            num = (yield from self.read_UInt32(line))
-            byte= (yield from self.read_Data  (line, num.val))
-            cmd = coproc.CMD_MEMWRITE(*u32, ptr, num, byte)
+            self.out = ptr  = (yield from self.read_UInt32     (line))
+            self.out = num  = (yield from self.read_UInt32     (line))
+            self.out = byte = (yield from self.read_DataBytes  (line, num.val))
+            self.out = pad  = (yield from self.read_DataPadding(line, num.val))
+            cmd = coproc.CMD_MEMWRITE(*u32, ptr, num, byte, pad)
 
         #-- Commands for loading data into RAM_G ---------------------------#
         #-- Commands for setting the bitmap transform matrix ---------------#
@@ -624,22 +640,20 @@ class Fsm:
         elif u32.val == 0xffffff32:
             cmd = coproc.CMD_COLDSTART(*u32)
         elif u32.val == 0xffffff02:
-            ms  = (yield from self.read_UInt32(line))
+            self.out = ms = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_INTERRUPT(*u32, ms)
         elif u32.val == 0xffffff19:
-            ptr = (yield from self.read_UInt32(line))
-            res = (yield from self.read_UInt32(line))
-            cmd = coproc.CMD_REGREAD(*u32, ptr, res)
+            self.out = ptr    = (yield from self.read_UInt32(line))
+            self.out = result = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_REGREAD(*u32, ptr, result)
 
         #-------------------------------------------------------------------#
         else:
             cmd = warning.UnknownCommand(*u32)
             return cmd
 
-        for par in cmd.parameters():
-            self.out = getattr(cmd, par)
-
         cmd.es_ = self.es[-1]
+        self.addr = memmap.add(self.addr, 4 + self.mosi_size - mosi_size)
         return cmd
 
 class Decoder (srd.Decoder):

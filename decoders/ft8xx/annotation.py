@@ -47,6 +47,9 @@ class Annotation:
     ss_: int    # start sample
     es_: int    # end sample
 
+    def __bool__ (self):
+        return self.ss_ < self.es_
+
     @property
     def name_ (self) -> str:
         return self.__class__.__name__

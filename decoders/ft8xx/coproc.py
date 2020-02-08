@@ -71,10 +71,6 @@ class Command (annotation.Command):
         return [f'{self.name_}({par_str})']
 
     @property
-    def byte_str (self) -> str:
-        return 'bytes'
-
-    @property
     def ch_str (self) -> str:
         return self._dec_str(self.ch.val)
 
@@ -326,7 +322,7 @@ class _Parameter (annotation.Annotation):
 
     @property
     def strings_ (self) -> List[str]:
-        return [self.name_ + ': ' + self.val_]
+        return [f'{self.name_}: {self.val_}']
 
 @dataclass
 class Data (_Parameter):
@@ -340,7 +336,9 @@ class Data (_Parameter):
 
     @property
     def strings_ (self) -> List[str]:
-        return ['byte0..1']
+        return [f'byte{self.pos}..{self.pos + self.size - 1}'] \
+                    if self.size > 1 else [] \
+             + [f'byte{self.pos}', f'{self.pos}']
 
 @dataclass
 class _Int (_Parameter):
@@ -384,6 +382,14 @@ class UInt32 (_Int):
         return 'uint32_t'
 
 @dataclass
+class Padding (_Parameter):
+    '''Parameter of data padding.'''
+
+    @property
+    def strings_ (self) -> List[str]:
+        return ['padding']
+
+@dataclass
 class String (_Parameter):
     '''Parameter of null-terminated `const char*`.'''
     val: str    # raw value
@@ -406,7 +412,7 @@ class CMD_DLSTART (Command):
 @dataclass
 class CMD_INTERRUPT (Command):
     '''Trigger interrupt INT_CMDFLAG.'''
-    ms: UInt32      # delay before the interrupt triggers, in milliseconds
+    ms     : UInt32      # delay before the interrupt triggers, in milliseconds
 
     @property
     def ms_str (self) -> str:
@@ -461,9 +467,10 @@ class CMD_MEMWRITE (Command):
     '''Write bytes into memory.'''
     ptr    : UInt32 # memory address to be written
     num    : UInt32 # number of bytes to be written
-    byte   : Tuple[Data] # data byte
+    byte_  : List[Data] # data byte
+    pad_   : Padding
 
-    byte_str = Command.byte_str
+    ptr_str = Command.ptr_ramreg_str
 
 @dataclass
 class CMD_INFLATE (Command):
