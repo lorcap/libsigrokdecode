@@ -17,6 +17,7 @@
 ## along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
+import dataclasses
 from typing import ByteString, List, Tuple
 from dataclasses import dataclass
 from . import annotation, memmap, warning
@@ -325,20 +326,43 @@ class _Parameter (annotation.Annotation):
         return [f'{self.name_}: {self.val_}']
 
 @dataclass
-class Data (_Parameter):
-    '''Parameter of type `data byte`.'''
+class DataChunk (_Parameter):
+    '''Chunk of data bytes.'''
     val: ByteString # data bytes
     pos: int        # position of first byte in the data stream
 
+    def __len__ (self) -> int:
+        return len(self.val)
+
     @property
     def name_ (self) -> str:
-        return f'byte{self.pos}..{self.pos + len(self.val) - 1}'\
+        return f'byte{self.pos}…{self.pos + len(self.val) - 1}'\
                if len(self.val) > 1 else f'byte{self.pos}'
 
     @property
     def val_ (self) -> str:
         hex = [ self.val[i:i+4].hex() for i in range(0, len(self.val), 4) ]
         return ':'.join(hex)
+
+@dataclass
+class DataBytes (_Parameter):
+    '''Parameter of type `data byte`.'''
+    chunks_: Tuple[DataChunk]
+    size: int = dataclasses.field(init=False)
+
+    def __post_init__ (self):
+        self.size = 0
+        for c in self.chunks_:
+            self.size += len(c)
+
+    @property
+    def val (self) -> str:
+        print(self.size)
+        return (self._size_str(self.size) if self.size else 'none')
+
+    @property
+    def name_ (self) -> str:
+        return 'byte'
 
 @dataclass
 class _Int (_Parameter):
@@ -467,7 +491,7 @@ class CMD_MEMWRITE (Command):
     '''Write bytes into memory.'''
     ptr    : UInt32 # memory address to be written
     num    : UInt32 # number of bytes to be written
-    byte_  : List[Data]
+    byte_  : DataBytes
 
     ptr_str = Command.ptr_ramreg_str
 
@@ -475,14 +499,14 @@ class CMD_MEMWRITE (Command):
 class CMD_INFLATE (Command):
     '''Decompress data into memory.'''
     ptr    : UInt32 # destination address in RAM_G
-    data_  : List[Data]
+    byte   : DataBytes
 
 @dataclass
 class CMD_INFLATE2 (Command):
     '''Decompress data into memory.'''
     ptr    : UInt32 # destination address to put the decompressed data
     options: UInt32 #
-    data_  : List[Data]
+    byte   : DataBytes
 
 @dataclass
 class CMD_LOADIMAGE (Command):

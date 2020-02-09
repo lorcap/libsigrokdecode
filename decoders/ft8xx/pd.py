@@ -201,23 +201,25 @@ class Fsm:
         yield from self.read(line, count)
         return Int(self.ss[-self.size], self.es[-1], self.val[-self.size:])
 
-    def read_Data (self, line, num: int, pos: int) -> coproc.Data:
+    def read_DataChunk (self, line, num: int, pos: int) -> coproc.DataChunk:
         '''Read a coproc's num-long sequence of 8-bit data bytes.'''
         ss, es, bytes = (yield from self.read_data(line, num))
-        return coproc.Data(ss, es, bytes, pos)
+        return coproc.DataChunk(ss, es, bytes, pos)
 
-    def read_DataBytes (self, line, num: int) -> List[coproc.Data]:
+    def read_DataBytes (self, line, num: int, options: int = 0) -> coproc.DataBytes:
         '''Read a coproc's sequence of 8-bit data bytes.'''
-        bytes = list()
-        count = 0
-        while count < num:
-            size = num - count
-            if size > 32:
-                size = 32
-            data = (yield from self.read_Data(line, size, count))
-            bytes.append(data)
-            count += size
-        return bytes
+        chunks = list()
+        if options & (coproc.OPT_MEDIAFIFO|coproc.OPT_FLASH) == 0:
+            count = 0
+            while count < num:
+                size = num - count
+                if size > 32:
+                    size = 32
+                self.out = chunk = (yield from self.read_DataChunk(line, size, count))
+                chunks.append(chunk)
+                count += size
+            self.out = (yield from self.read_DataPadding(line, num))
+        return coproc.DataBytes(0, 0, tuple(chunks))
 
     def read_DataPadding (self, line, num: int) -> coproc.Padding:
         '''Read a coproc's sequence of up-to-3 padding bytes.'''
@@ -628,34 +630,22 @@ class Fsm:
             self.out = ptr  = (yield from self.read_UInt32     (line))
             self.out = num  = (yield from self.read_UInt32     (line))
             self.out = byte = (yield from self.read_DataBytes  (line, num.val))
-            self.out = pad  = (yield from self.read_DataPadding(line, num.val))
             cmd = coproc.CMD_MEMWRITE(*u32, ptr, num, byte)
 
         #-- Commands for loading data into RAM_G ---------------------------#
         elif u32.val == 0xffffff22:
             self.out = ptr  = (yield from self.read_UInt32     (line))
             self.out = byte = (yield from self.read_DataBytes  (line, 10))
-            self.out = pad  = (yield from self.read_DataPadding(line, 10))
             cmd = coproc.CMD_INFLATE(*u32, ptr, byte)
         elif u32.val == 0xffffff50:
-            self.out = ptr  = (yield from self.read_UInt32     (line))
-            self.out = opts = (yield from self.read_UInt32     (line))
-            if opts.val & (coproc.OPT_MEDIAFIFO|coproc.OPT_FLASH):
-                byte = []
-                pad  = None
-            else:
-                self.out = byte = (yield from self.read_DataBytes  (line, 10))
-                self.out = pad  = (yield from self.read_DataPadding(line, 10))
+            self.out = ptr  = (yield from self.read_UInt32   (line))
+            self.out = opts = (yield from self.read_UInt32   (line))
+            self.out = byte = (yield from self.read_DataBytes(line, 10, opts.val))
             cmd = coproc.CMD_INFLATE2(*u32, ptr, opts, byte)
         elif u32.val == 0xffffff24:
             self.out = ptr  = (yield from self.read_UInt32(line))
             self.out = opts = (yield from self.read_UInt32(line))
-            if opts.val & (coproc.OPT_MEDIAFIFO|coproc.OPT_FLASH):
-                byte = []
-                pad  = None
-            else:
-                self.out = byte = (yield from self.read_DataBytes  (line, 69))
-                self.out = pad  = (yield from self.read_DataPadding(line, 69))
+            self.out = byte = (yield from self.read_DataBytes(line, 69, opts.val))
             cmd = coproc.CMD_LOADIMAGE(*u32, ptr, opts, byte)
         elif u32.val == 0xffffff39:
             self.out = ptr  = (yield from self.read_UInt32(line))
