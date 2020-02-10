@@ -76,8 +76,8 @@ class Command (annotation.Command):
         return self._dec_str(self.ch.val)
 
     @property
-    def dst_str (self) -> str:
-        return self._hex_str(self.dst.val)
+    def dst_ramg_str (self) -> str:
+        return self._ramg_str('dst')
 
     @property
     def font_str (self) -> str:
@@ -235,16 +235,13 @@ class Command (annotation.Command):
 
     @property
     def ptr_ramg_str (self) -> str:
-        if not memmap.RAM_G.contains(self.ptr.val):
-            self._warning = warning.Message('not a RAM_G address')
-        elif memmap.add(self.ptr.val, self.num.val) > memmap.RAM_G.end:
-            self._warning = warning.Message('RAM_G overflow')
-        return self._hex_str(self.ptr.val)
+        return self._ramg_str('ptr')
 
     @property
     def ptr_ramreg_str (self) -> str:
+        assert hasattr(self, 'ptr')
         if not memmap.RAM_REG.contains(self.ptr.val):
-            self._warning = warning.Message('not a RAM_REG address')
+            self._warning = warning.Message(self.ss, self.es, 'not a RAM_REG address')
         return self._hex_str(self.ptr.val)
 
     @property
@@ -256,8 +253,8 @@ class Command (annotation.Command):
         return self._size_str(self.size.val)
 
     @property
-    def src_str (self) -> str:
-        return self._hex_str(self.src.val)
+    def src_ramg_str (self) -> str:
+        return self._ramg_str('src')
 
     @property
     def tx0_str (self) -> str:
@@ -311,6 +308,17 @@ class Command (annotation.Command):
     def w_str (self) -> str:
         return f'{self.w.val}px'
 
+    def _ramg_str (self, name: str) -> str:
+        assert hasattr(self, name)
+        par = getattr(self, name)
+        assert isinstance(par, _Int)
+        if not memmap.RAM_G.contains(par.val):
+            self._warning = warning.Message(self.ss, self.es, 'not a RAM_G address')
+        if hasattr(self, 'num') and \
+                memmap.add(par.val, self.num.val) > memmap.RAM_G.end:
+            self._warning = warning.Message(self.ss, self.es, 'RAM_G overflow')
+        return self._hex_str(par.val)
+
 # ------------------------------------------------------------------------- #
 
 @dataclass
@@ -357,7 +365,6 @@ class DataBytes (_Parameter):
 
     @property
     def val (self) -> str:
-        print(self.size)
         return (self._size_str(self.size) if self.size else 'none')
 
     @property
@@ -493,13 +500,15 @@ class CMD_MEMWRITE (Command):
     num    : UInt32 # number of bytes to be written
     byte_  : DataBytes
 
-    ptr_str = Command.ptr_ramreg_str
+    ptr_str = Command.ptr_ramg_str
 
 @dataclass
 class CMD_INFLATE (Command):
     '''Decompress data into memory.'''
     ptr    : UInt32 # destination address in RAM_G
     byte   : DataBytes
+
+    ptr_str = Command.ptr_ramg_str
 
 @dataclass
 class CMD_INFLATE2 (Command):
@@ -508,12 +517,16 @@ class CMD_INFLATE2 (Command):
     options: UInt32 #
     byte   : DataBytes
 
+    ptr_str = Command.ptr_ramg_str
+
 @dataclass
 class CMD_LOADIMAGE (Command):
     '''Load a JPEG or PNG image.'''
     ptr    : UInt32 # destination address
     options: UInt32 #
-    data_  : int
+    byte   : DataBytes
+
+    ptr_str = Command.ptr_ramg_str
 
 @dataclass
 class CMD_MEDIAFIFO (Command):
@@ -521,11 +534,12 @@ class CMD_MEDIAFIFO (Command):
     ptr    : UInt32 # starting address of memory block
     size   : UInt32 # number of bytes in the source memory block
 
+    ptr_str = Command.ptr_ramg_str
+
 @dataclass
 class CMD_PLAYVIDEO (Command):
     '''Video playback'''
     options: UInt32 #
-    data   : int
 
 @dataclass
 class CMD_VIDEOSTART (Command):
@@ -538,6 +552,9 @@ class CMD_VIDEOFRAME (Command):
     dst    : UInt32 # memory location to load the frame data
     ptr    : UInt32 # complition pointer
 
+    dst_str = Command.dst_ramg_str
+    ptr_str = Command.ptr_ramg_str
+
 @dataclass
 class CMD_MEMCRC (Command):
     '''Compute a CRC-32 for memory'''
@@ -545,11 +562,15 @@ class CMD_MEMCRC (Command):
     num    : UInt32 # number of bytes in the source memory block
     result : UInt32 # output parameter
 
+    ptr_str = Command.ptr_ramg_str
+
 @dataclass
 class CMD_MEMZERO (Command):
     '''Write zero to a block of memory.'''
     ptr    : UInt32 # starting address of the memory block
     num    : UInt32 # number of bytes in the memory block
+
+    ptr_str = Command.ptr_ramg_str
 
 @dataclass
 class CMD_MEMSET (Command):
@@ -558,12 +579,17 @@ class CMD_MEMSET (Command):
     value  : UInt32 # value to be written to memory
     num    : UInt32 # number of bytes in the memory block
 
+    ptr_str = Command.ptr_ramg_str
+
 @dataclass
 class CMD_MEMCPY (Command):
     '''Copy a block of memory'''
     dst    : UInt32 # address of the destination memory block
     src    : UInt32 # address of the source memory block
     num    : UInt32 # number of bytes to copy
+
+    dst_str = Command.dst_ramg_str
+    src_str = Command.src_ramg_str
 
 @dataclass
 class CMD_BUTTON (Command):

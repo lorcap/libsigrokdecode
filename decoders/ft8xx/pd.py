@@ -620,17 +620,52 @@ class Fsm:
             self.out = opts = (yield from self.read_UInt16(line))
             self.out = s    = (yield from self.read_String(line))
             cmd = coproc.CMD_TEXT(*u32, x, y, font, opts, s)
+            # CMD_BUTTON
+            # CMD_CLOCK
+            # CMD_BGCOLOR
+            # CMD_FGCOLOR
+            # CMD_GRADCOLOR
+            # CMD_GAUGE
+            # CMD_GRADIENT
+            # CMD_KEYS
+            # CMD_PROGRESS
+            # CMD_SCROLLBAR
+            # CMD_SLIDER
+            # CMD_DIAL
+            # CMD_TOGGLE
+            # CMD_NUMBER
+            # CMD_SETBASE
+            # CMD_FILLWIDTH
 
         #-- Commands to operate on memory ----------------------------------#
-        elif u32.val == 0xffffff1e:
-            self.out = ptr  = (yield from self.read_UInt32(line))
-            self.out = num  = (yield from self.read_UInt32(line))
-            cmd = coproc.CMD_APPEND(*u32, ptr, num)
+        elif u32.val == 0xffffff18:
+            self.out = dst    = (yield from self.read_UInt32(line))
+            self.out = num    = (yield from self.read_UInt32(line))
+            self.out = result = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_MEMCRC(*u32, dst, num, result)
+        elif u32.val == 0xffffff1c:
+            self.out = ptr = (yield from self.read_UInt32(line))
+            self.out = num = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_MEMZERO(*u32, ptr, num)
+        elif u32.val == 0xffffff1b:
+            self.out = ptr   = (yield from self.read_UInt32(line))
+            self.out = value = (yield from self.read_UInt32(line))
+            self.out = num   = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_MEMSET(*u32, ptr, value, num)
         elif u32.val == 0xffffff1a:
             self.out = ptr  = (yield from self.read_UInt32     (line))
             self.out = num  = (yield from self.read_UInt32     (line))
             self.out = byte = (yield from self.read_DataBytes  (line, num.val))
             cmd = coproc.CMD_MEMWRITE(*u32, ptr, num, byte)
+        elif u32.val == 0xffffff1d:
+            self.out = dst = (yield from self.read_UInt32(line))
+            self.out = src = (yield from self.read_UInt32(line))
+            self.out = num = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_MEMCPY(*u32, dst, src, num)
+        elif u32.val == 0xffffff1e:
+            self.out = ptr  = (yield from self.read_UInt32(line))
+            self.out = num  = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_APPEND(*u32, ptr, num)
 
         #-- Commands for loading data into RAM_G ---------------------------#
         elif u32.val == 0xffffff22:
@@ -653,9 +688,48 @@ class Fsm:
             cmd = coproc.CMD_MEDIAFIFO(*u32, ptr, size)
 
         #-- Commands for setting the bitmap transform matrix ---------------#
+            # CMD_LOADIDENTITY
+            # CMD_TRANSLATE
+            # CMD_SCALE
+            # CMD_ROTATE
+            # CMD_ROTATEAROUND
+            # CMD_SETMATRIX
+            # CMD_GETMATRIX
+
         #-- Commands for flash operation -----------------------------------#
+            # CMD_FLASHERASE
+            # CMD_FLASHWRITE
+            # CMD_FLASHUPDATE
+            # CMD_FLASHDETACH
+            # CMD_FLASHATTACH
+            # CMD_FLASHFAST
+            # CMD_FLASHSPIDESEL
+            # CMD_FLASHTX
+            # CMD_FLASHRX
+            # CMD_CLEARCACHE
+            # CMD_FLASHSOURCE
+            # CMD_VIDEOSTARTF
+            # CMD_APPENDF
+
         #-- Commands for video playback ------------------------------------#
+        elif u32.val == 0xffffff40:
+            cmd = coproc.CMD_VIDEOSTART(*u32)
+            # CMD_VIDEOSTARTF
+        elif u32.val == 0xffffff41:
+            self.out = dst = (yield from self.read_UInt32(line))
+            self.out = ptr = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_VIDEOFRAME(*u32, dst, ptr)
+        elif u32.val == 0xffffff3a:
+            self.out = opts = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_PLAYVIDEO(*u32, opts)
+
         #-- Commands for animation -----------------------------------------#
+            # CMD_ANIMFRAME
+            # CMD_ANIMSTART
+            # CMD_ANIMSTOP
+            # CMD_ANIMXY
+            # CMD_ANIMDRAW
+
         #-- Other commands -------------------------------------------------#
         elif u32.val == 0xffffff32:
             cmd = coproc.CMD_COLDSTART(*u32)
@@ -666,6 +740,17 @@ class Fsm:
             self.out = ptr    = (yield from self.read_UInt32(line))
             self.out = result = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_REGREAD(*u32, ptr, result)
+            # CMD_CALIBRATE
+            # CMD_ROMFONT
+            # CMD_SETROTATE
+            # CMD_SETBITMAP
+            # CMD_SPINNER
+            # CMD_STOP
+            # CMD_SCREENSAVER
+            # CMD_SKETCH
+            # CMD_SNAPSHOT
+            # CMD_SNAPSHOT2
+            # CMD_LOGO
 
         #-------------------------------------------------------------------#
         else:
