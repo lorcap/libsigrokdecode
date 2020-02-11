@@ -19,7 +19,7 @@
 
 from dataclasses import dataclass
 from typing import List
-from . import annotation, warning
+from . import annotation
 
 @dataclass
 class Byte1 (annotation.Annotation):
@@ -96,8 +96,7 @@ class CLKSEL (Command):
           or (self.clock in (4, 5, 6) and self.pll == 1):
             return f'{self.clock}x osc frequency'
         else:
-            self._warning = warning.Message("invalid combination of 'clock' and 'pll'")
-            return 'invalid'
+            return ''
 
 @dataclass
 class PIN_PD_STATE (Command):

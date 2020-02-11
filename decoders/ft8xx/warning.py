@@ -57,6 +57,30 @@ class MissingDummy (Warning):
         return ['missing dummy byte']
 
 @dataclass
+class NotRamGAddr (Warning):
+    '''Warning for address not pointing to RAM_G.'''
+
+    @property
+    def strings_ (self) -> List[str]:
+        return ['not a RAM_G address']
+
+@dataclass
+class NotRamRegAddr (Warning):
+    '''Warning for address not pointing to RAM_REG.'''
+
+    @property
+    def strings_ (self) -> List[str]:
+        return ['not a RAM_REG address']
+
+@dataclass
+class OutOfRamGRange (Warning):
+    '''Warning for range not within RAM_G.'''
+
+    @property
+    def strings_ (self) -> List[str]:
+        return ['out of RAM_G range']
+
+@dataclass
 class TrailingData (Warning):
     '''Warning for transaction trailing data.'''
     count: int  # trailing byte count

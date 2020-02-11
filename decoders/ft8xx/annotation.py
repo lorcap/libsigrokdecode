@@ -107,15 +107,10 @@ class Annotation:
         return f'{ft80x}/{ft81x}/{bt81x}{unit} (FT80x/FT81x/BT81x)'
 
 #---------------------------------------------------------------------------#
-from . import warning
 
 @dataclass
 class Command (Annotation):
     '''Annotation common to all command types.'''
-
-    def __post_init__ (self) -> None:
-        '''Dataclass' post-init processing.'''
-        self._warning = None # Warning annotation, if any
 
     @property
     def strings_ (self) -> List[str]:
@@ -129,8 +124,7 @@ class Command (Annotation):
             try:
                 # parameter is represented by '<par>_str'
                 val_str = getattr(self, name + '_str')
-                if not val_str:
-                    self._warning = warning.InvalidParameterValue(self.ss_, self.es_, val, name)
+                assert val_str
             except AttributeError:
                 # '<par>_str' doesn't exist
                 val_str = ''
@@ -155,11 +149,6 @@ class Command (Annotation):
 
         ret.append(self.name_)
         return ret
-
-    @property
-    def warning_ (self) -> warning.Warning:
-        '''Warning annotation, if any.'''
-        return self._warning
 
     def parameters (self) -> List[str]:
         '''Return a list of command's parameters, if any.'''

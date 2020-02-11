@@ -310,6 +310,21 @@ class Fsm:
         '''Detect whether not all expected bytes were read.'''
         return self.count < self.size
 
+    @staticmethod
+    def assert_ram_g (ptr: coproc.UInt32) -> annotation.Annotation:
+        assert isinstance(ptr, coproc.UInt32)
+        return warning.NotRamGAddr(ptr.ss_, ptr.es_)\
+            if not memmap.RAM_G.contains(ptr.val) else None
+
+    @staticmethod
+    def assert_ram_g_range (ptr: coproc.UInt32, num: coproc.UInt32) -> annotation.Annotation:
+        assert isinstance(ptr, coproc.UInt32)
+        assert isinstance(num, coproc.UInt32)
+        return warning.OutOfRamGRange(num.ss_, num.es_)\
+            if not memmap.RAM_G.contains(ptr.val) or\
+               not memmap.RAM_G.contains(memmap.add(ptr.val, num.val))\
+            else None
+
     @property
     def out (self):
         _out = self._out
@@ -359,6 +374,8 @@ class Fsm:
 
         elif byte1.val == 0x61 or byte1.val == 0x62:
             cmd = hostcmd.CLKSEL(*byte1, pll=byte2[7:6], clock=byte2[5:0])
+            if not cmd.clock_str:
+                self.out = warning.Message("invalid combination of 'clock' and 'pll'")
 
         elif byte1.val == 0x68:
             cmd = hostcmd.RST_PULSE(*byte1)
@@ -389,8 +406,6 @@ class Fsm:
         if cmd:
             cmd.es_ = byte3.es
             self.out = cmd
-            if cmd.warning_:
-                self.out = cmd.warning_
 
     #########################################################################
 
@@ -640,50 +655,68 @@ class Fsm:
         #-- Commands to operate on memory ----------------------------------#
         elif u32.val == 0xffffff18:
             self.out = dst    = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(dst)
             self.out = num    = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g_range(dst, num)
             self.out = result = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_MEMCRC(*u32, dst, num, result)
         elif u32.val == 0xffffff1c:
             self.out = ptr = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(ptr)
             self.out = num = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g_range(ptr, num)
             cmd = coproc.CMD_MEMZERO(*u32, ptr, num)
         elif u32.val == 0xffffff1b:
             self.out = ptr   = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(ptr)
             self.out = value = (yield from self.read_UInt32(line))
             self.out = num   = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g_range(ptr, num)
             cmd = coproc.CMD_MEMSET(*u32, ptr, value, num)
         elif u32.val == 0xffffff1a:
-            self.out = ptr  = (yield from self.read_UInt32     (line))
-            self.out = num  = (yield from self.read_UInt32     (line))
-            self.out = byte = (yield from self.read_DataBytes  (line, num.val))
+            self.out = ptr  = (yield from self.read_UInt32   (line))
+            self.out = self.assert_ram_g(ptr)
+            self.out = num  = (yield from self.read_UInt32   (line))
+            self.out = self.assert_ram_g_range(ptr, num)
+            self.out = byte = (yield from self.read_DataBytes(line, num.val))
             cmd = coproc.CMD_MEMWRITE(*u32, ptr, num, byte)
         elif u32.val == 0xffffff1d:
             self.out = dst = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(dst)
             self.out = src = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(src)
             self.out = num = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g_range(dst, num)
+            self.out = self.assert_ram_g_range(src, num)
             cmd = coproc.CMD_MEMCPY(*u32, dst, src, num)
         elif u32.val == 0xffffff1e:
             self.out = ptr  = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(ptr)
             self.out = num  = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g_range(ptr, num)
             cmd = coproc.CMD_APPEND(*u32, ptr, num)
 
         #-- Commands for loading data into RAM_G ---------------------------#
         elif u32.val == 0xffffff22:
             self.out = ptr  = (yield from self.read_UInt32     (line))
+            self.out = self.assert_ram_g(ptr)
             self.out = byte = (yield from self.read_DataBytes  (line, 10))
             cmd = coproc.CMD_INFLATE(*u32, ptr, byte)
         elif u32.val == 0xffffff50:
             self.out = ptr  = (yield from self.read_UInt32   (line))
+            self.out = self.assert_ram_g(ptr)
             self.out = opts = (yield from self.read_UInt32   (line))
             self.out = byte = (yield from self.read_DataBytes(line, 10, opts.val))
             cmd = coproc.CMD_INFLATE2(*u32, ptr, opts, byte)
         elif u32.val == 0xffffff24:
             self.out = ptr  = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(ptr)
             self.out = opts = (yield from self.read_UInt32(line))
             self.out = byte = (yield from self.read_DataBytes(line, 69, opts.val))
             cmd = coproc.CMD_LOADIMAGE(*u32, ptr, opts, byte)
         elif u32.val == 0xffffff39:
             self.out = ptr  = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(ptr)
             self.out = size = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_MEDIAFIFO(*u32, ptr, size)
 
@@ -717,7 +750,9 @@ class Fsm:
             # CMD_VIDEOSTARTF
         elif u32.val == 0xffffff41:
             self.out = dst = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(dst)
             self.out = ptr = (yield from self.read_UInt32(line))
+            self.out = self.assert_ram_g(ptr)
             cmd = coproc.CMD_VIDEOFRAME(*u32, dst, ptr)
         elif u32.val == 0xffffff3a:
             self.out = opts = (yield from self.read_UInt32(line))
@@ -738,6 +773,8 @@ class Fsm:
             cmd = coproc.CMD_INTERRUPT(*u32, ms)
         elif u32.val == 0xffffff19:
             self.out = ptr    = (yield from self.read_UInt32(line))
+            if not memmap.RAM_REG.contains(ptr.val):
+                self.out = warning.NotRamRegAddr(self.ss, self.es)
             self.out = result = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_REGREAD(*u32, ptr, result)
             # CMD_CALIBRATE
