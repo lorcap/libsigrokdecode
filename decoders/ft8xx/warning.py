@@ -73,12 +73,20 @@ class NotRamRegAddr (Warning):
         return ['not a RAM_REG address']
 
 @dataclass
-class OutOfRamGRange (Warning):
-    '''Warning for range not within RAM_G.'''
+class OutOfFontRange (Warning):
+    '''Warning for value not within font's range.'''
 
     @property
     def strings_ (self) -> List[str]:
         return ['out of RAM_G range']
+
+@dataclass
+class OutOfRamGRange (Warning):
+    '''Warning for value not within RAM_G's range.'''
+
+    @property
+    def strings_ (self) -> List[str]:
+        return ["out of RAM_G's range"]
 
 @dataclass
 class TrailingData (Warning):

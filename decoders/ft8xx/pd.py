@@ -311,19 +311,25 @@ class Fsm:
         return self.count < self.size
 
     @staticmethod
+    def assert_font (font: coproc.Int16) -> annotation.Annotation:
+        assert isinstance(font, coproc.Int16)
+        return None if 0 <= font.val <= 31 else\
+               warning.NotRamGAddr(ptr.ss_, ptr.es_)
+            warning.OutOfFontRange(font.ss_, font.es_)
+
+    @staticmethod
     def assert_ram_g (ptr: coproc.UInt32) -> annotation.Annotation:
         assert isinstance(ptr, coproc.UInt32)
-        return warning.NotRamGAddr(ptr.ss_, ptr.es_)\
-            if not memmap.RAM_G.contains(ptr.val) else None
+        return None if memmap.RAM_G.contains(ptr.val) else
+            warning.NotRamGAddr(ptr.ss_, ptr.es_)
 
     @staticmethod
     def assert_ram_g_range (ptr: coproc.UInt32, num: coproc.UInt32) -> annotation.Annotation:
         assert isinstance(ptr, coproc.UInt32)
         assert isinstance(num, coproc.UInt32)
-        return warning.OutOfRamGRange(num.ss_, num.es_)\
-            if not memmap.RAM_G.contains(ptr.val) or\
-               not memmap.RAM_G.contains(memmap.add(ptr.val, num.val))\
-            else None
+        return None if memmap.RAM_G.contains(ptr.val) and\
+                       memmap.RAM_G.contains(memmap.add(ptr.val, num.val)) else\
+            warning.OutOfRamGRange(num.ss_, num.es_)
 
     @property
     def out (self):
@@ -632,20 +638,103 @@ class Fsm:
             self.out = x    = (yield from self.read_Int16 (line))
             self.out = y    = (yield from self.read_Int16 (line))
             self.out = font = (yield from self.read_Int16 (line))
+            self.out = self.assert_font_range(font)
             self.out = opts = (yield from self.read_UInt16(line))
             self.out = s    = (yield from self.read_String(line))
             cmd = coproc.CMD_TEXT(*u32, x, y, font, opts, s)
-            # CMD_BUTTON
-            # CMD_CLOCK
-            # CMD_BGCOLOR
-            # CMD_FGCOLOR
-            # CMD_GRADCOLOR
-            # CMD_GAUGE
-            # CMD_GRADIENT
-            # CMD_KEYS
-            # CMD_PROGRESS
-            # CMD_SCROLLBAR
-            # CMD_SLIDER
+        elif u32.val == 0xffffff0d:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = w    = (yield from self.read_Int16 (line))
+            self.out = h    = (yield from self.read_Int16 (line))
+            self.out = font = (yield from self.read_Int16 (line))
+            self.out = self.assert_font_range(font)
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = s    = (yield from self.read_String(line))
+            cmd = coproc.CMD_BUTTON(*u32, x, y, w, h, font, opts, s)
+        elif u32.val == 0xffffff14:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = r    = (yield from self.read_Int16 (line))
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = h    = (yield from self.read_UInt16(line))
+            self.out = m    = (yield from self.read_UInt16(line))
+            self.out = s    = (yield from self.read_UInt16(line))
+            self.out = ms   = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_CLOCK(*u32, x, y, r, opts, h, m, s, ms)
+        elif u32.val == 0xffffff0a:
+            self.out = c = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_FGCOLOR(*u32, c)
+        elif u32.val == 0xffffff09:
+            self.out = c = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_BGCOLOR(*u32, c)
+        elif u32.val == 0xffffff34:
+            self.out = c = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_GRADCOLOR(*u32, c)
+        elif u32.val == 0xffffff13:
+            self.out = x     = (yield from self.read_Int16 (line))
+            self.out = y     = (yield from self.read_Int16 (line))
+            self.out = r     = (yield from self.read_Int16 (line))
+            self.out = opts  = (yield from self.read_UInt16(line))
+            self.out = major = (yield from self.read_UInt16(line))
+            self.out = minor = (yield from self.read_UInt16(line))
+            self.out = val   = (yield from self.read_UInt16(line))
+            self.out = rang  = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_GAUGE(*u32, x, y, r, opts, major, minor, val, rang)
+        elif u32.val == 0xffffff0b:
+            self.out = x0   = (yield from self.read_Int16 (line))
+            self.out = y0   = (yield from self.read_Int16 (line))
+            self.out = rgb0 = (yield from self.read_UInt16(line))
+            self.out = x1   = (yield from self.read_Int16 (line))
+            self.out = y1   = (yield from self.read_Int16 (line))
+            self.out = rgb1 = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_GRADIENT(*u32, x0, y0, rgb0, x1, y1, rgb1)
+        elif u32.val == 0xffffff57:
+            self.out = x0    = (yield from self.read_Int16 (line))
+            self.out = y0    = (yield from self.read_Int16 (line))
+            self.out = argb0 = (yield from self.read_UInt16(line))
+            self.out = x1    = (yield from self.read_Int16 (line))
+            self.out = y1    = (yield from self.read_Int16 (line))
+            self.out = argb1 = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_GRADIENTA(*u32, x0, y0, argb0, x1, y1, argb1)
+        elif u32.val == 0xffffff0e:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = w    = (yield from self.read_Int16 (line))
+            self.out = h    = (yield from self.read_Int16 (line))
+            self.out = font = (yield from self.read_Int16 (line))
+            self.out = self.assert_font_range(font)
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = s    = (yield from self.read_String(line))
+            cmd = coproc.CMD_KEYS(*u32, x, y, w, h, font, opts, s)
+        elif u32.val == 0xffffff0f:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = w    = (yield from self.read_Int16 (line))
+            self.out = h    = (yield from self.read_Int16 (line))
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = val  = (yield from self.read_UInt16(line))
+            self.out = rang = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_PROGRESS(*u32, x, y, w, h, opts, val, rang)
+        elif u32.val == 0xffffff11:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = w    = (yield from self.read_Int16 (line))
+            self.out = h    = (yield from self.read_Int16 (line))
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = val  = (yield from self.read_UInt16(line))
+            self.out = size = (yield from self.read_UInt16(line))
+            self.out = rang = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_SCROLLBAR(*u32, x, y, w, h, opts, val, size, rang)
+        elif u32.val == 0xffffff10:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = w    = (yield from self.read_Int16 (line))
+            self.out = h    = (yield from self.read_Int16 (line))
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = val  = (yield from self.read_UInt16(line))
+            self.out = rang = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_SLIDER(*u32, x, y, w, h, opts, val, rang)
             # CMD_DIAL
             # CMD_TOGGLE
             # CMD_NUMBER

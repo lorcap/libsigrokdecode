@@ -72,6 +72,11 @@ class Command (annotation.Command):
         return [f'{self.name_}({par_str})']
 
     @property
+    def argb_str (self) -> str:
+        (a, r, g, b) = self._argb(c.val)
+        return f'argb({a},{r},{g},{b})'
+
+    @property
     def ch_str (self) -> str:
         return self._dec_str(self.ch.val)
 
@@ -238,8 +243,21 @@ class Command (annotation.Command):
         return self._hex_str(self.ptr.val)
 
     @property
-    def result_ptr (self) -> str:
+    def result_str (self) -> str:
         return f'({self.result.val})'
+
+    @staticmethod
+    def _argb (val: int) -> Tuple[int, int, int, int]:
+        a = (self.c.val & 0xff000000) >> 24
+        r = (self.c.val & 0x00ff0000) >> 16
+        g = (self.c.val & 0x0000ff00) >>  8
+        b = (self.c.val & 0x000000ff) >>  0
+        return (a, r, g, b)
+
+    @property
+    def rgb_str (self) -> str:
+        (a, r, g, b) = self._argb(c.val)
+        return f'rgb({r},{g},{b})'
 
     @property
     def size_str (self) -> str:
@@ -576,15 +594,21 @@ class CMD_FGCOLOR (Command):
     '''Set the foreground color.'''
     c      : UInt32 # new foreground color, as a 24-bit RGB number
 
+    c_str = Command.rgb_str
+
 @dataclass
 class CMD_BGCOLOR (Command):
     '''Set the background color'''
     c      : UInt32 # new background color, as a 24-bit RGB number
 
+    c_str = Command.rgb_str
+
 @dataclass
 class CMD_GRADCOLOR (Command):
     '''Set the 3D button highlight color.'''
     c      : UInt32 # new highlight gradient color, as a 24-bit RGB number
+
+    c_str = Command.rgb_str
 
 @dataclass
 class CMD_GAUGE (Command):
@@ -608,6 +632,9 @@ class CMD_GRADIENT (Command):
     y1     :  Int16 # y-coordinate of point 1, in pixels
     rgb1   : UInt32 # color of point 1
 
+    rgb0_str = Command.rgb_str
+    rgb1_str = Command.rgb_str
+
 @dataclass
 class CMD_GRADIENTA (Command):
     '''Draw a smooth color gradient with transparency.'''
@@ -617,6 +644,9 @@ class CMD_GRADIENTA (Command):
     x1     :  Int16 # x-coordinate of point 1, in pixels
     y1     :  Int16 # y-coordinate of point 1, in pixels
     argb1  : UInt32 # color of point 1
+
+    rgb0_str = Command.argb_str
+    rgb1_str = Command.argb_str
 
 @dataclass
 class CMD_KEYS (Command):
@@ -649,6 +679,7 @@ class CMD_SCROLLBAR (Command):
     h      :  Int16 # height of scroll bar, in pixels
     options: UInt16 #
     val    : UInt16 # displayed value of scroll bar
+    size   : UInt16 #
     range  : UInt16 # maximum value
 
 @dataclass
