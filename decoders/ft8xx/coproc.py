@@ -72,9 +72,16 @@ class Command (annotation.Command):
         return [f'{self.name_}({par_str})']
 
     @property
-    def argb_str (self) -> str:
-        (a, r, g, b) = self._argb(c.val)
-        return f'argb({a},{r},{g},{b})'
+    def argb0_str (self) -> str:
+        return self._argb_str(self.argb0.val)
+
+    @property
+    def argb1_str (self) -> str:
+        return self._argb_str(self.argb0.val)
+
+    @property
+    def c_str (self) -> str:
+        return self._rgb_str(self.c.val)
 
     @property
     def ch_str (self) -> str:
@@ -248,8 +255,15 @@ class Command (annotation.Command):
 
     @property
     def rgb_str (self) -> str:
-        (a, r, g, b) = self._argb(c.val)
-        return f'rgb({r},{g},{b})'
+        return self._rgb_str(self.rgb.val)
+
+    @property
+    def rgb0_str (self) -> str:
+        return self._rgb_str(self.rgb0.val)
+
+    @property
+    def rgb1_str (self) -> str:
+        return self._rgb_str(self.rgb1.val)
 
     @property
     def size_str (self) -> str:
@@ -313,15 +327,25 @@ class Command (annotation.Command):
 
     @staticmethod
     def _argb (val: int) -> Tuple[int, int, int, int]:
-        a = (self.c.val & 0xff000000) >> 24
-        r = (self.c.val & 0x00ff0000) >> 16
-        g = (self.c.val & 0x0000ff00) >>  8
-        b = (self.c.val & 0x000000ff) >>  0
+        a = (val & 0xff000000) >> 24
+        r = (val & 0x00ff0000) >> 16
+        g = (val & 0x0000ff00) >>  8
+        b = (val & 0x000000ff) >>  0
         return (a, r, g, b)
+
+    @staticmethod
+    def _argb_str (argb: int) -> str:
+        a, r, g, b = Command._argb(argb)
+        return f'argb({a},{r},{g},{b})'
 
     @staticmethod
     def _px_str (val: int) -> str:
         return f'{val}px'
+
+    @staticmethod
+    def _rgb_str (rgb: int) -> str:
+        a, r, g, b = Command._argb(rgb)
+        return f'rgb({r},{g},{b})'
 
 # ------------------------------------------------------------------------- #
 
@@ -598,21 +622,15 @@ class CMD_FGCOLOR (Command):
     '''Set the foreground color.'''
     c      : UInt32 # new foreground color, as a 24-bit RGB number
 
-    c_str = Command.rgb_str
-
 @dataclass
 class CMD_BGCOLOR (Command):
     '''Set the background color'''
     c      : UInt32 # new background color, as a 24-bit RGB number
 
-    c_str = Command.rgb_str
-
 @dataclass
 class CMD_GRADCOLOR (Command):
     '''Set the 3D button highlight color.'''
     c      : UInt32 # new highlight gradient color, as a 24-bit RGB number
-
-    c_str = Command.rgb_str
 
 @dataclass
 class CMD_GAUGE (Command):
@@ -636,9 +654,6 @@ class CMD_GRADIENT (Command):
     y1     :  Int16 # y-coordinate of point 1, in pixels
     rgb1   : UInt32 # color of point 1
 
-    rgb0_str = Command.rgb_str
-    rgb1_str = Command.rgb_str
-
 @dataclass
 class CMD_GRADIENTA (Command):
     '''Draw a smooth color gradient with transparency.'''
@@ -648,9 +663,6 @@ class CMD_GRADIENTA (Command):
     x1     :  Int16 # x-coordinate of point 1, in pixels
     y1     :  Int16 # y-coordinate of point 1, in pixels
     argb1  : UInt32 # color of point 1
-
-    rgb0_str = Command.argb_str
-    rgb1_str = Command.argb_str
 
 @dataclass
 class CMD_KEYS (Command):

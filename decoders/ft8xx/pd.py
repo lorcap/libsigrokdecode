@@ -257,10 +257,11 @@ class Fsm:
 
     def read_String (self, line) -> coproc.String:
         '''Read a '\0'-terminated string up to 4-byte boundary.'''
-        (ss, es, s) = self.read_data(line, eol=True)
+        ss, es, s = (yield from self.read_data(line, eol=True))
+        self.out = (yield from self.read_DataPadding(line, len(s) + 1))
         return coproc.String(ss, es, s.decode(errors='ignore'))
 
-    def read_data (self, line, num: int = 0, *, eol: bool = False)\
+    def read_data (self, line, num: int = 0, eol: bool = False)\
             -> Tuple[int, int, ByteString]:
         '''Read `num` bytes or until '\0'.'''
         if num == 0 and eol == False:
@@ -315,13 +316,12 @@ class Fsm:
     def assert_font (font: coproc.Int16) -> annotation.Annotation:
         assert isinstance(font, coproc.Int16)
         return None if 0 <= font.val <= 31 else\
-               warning.NotRamGAddr(ptr.ss_, ptr.es_)
             warning.OutOfFontRange(font.ss_, font.es_)
 
     @staticmethod
     def assert_ram_g (ptr: coproc.UInt32) -> annotation.Annotation:
         assert isinstance(ptr, coproc.UInt32)
-        return None if memmap.RAM_G.contains(ptr.val) else
+        return None if memmap.RAM_G.contains(ptr.val) else\
             warning.NotRamGAddr(ptr.ss_, ptr.es_)
 
     @staticmethod
@@ -639,7 +639,7 @@ class Fsm:
             self.out = x    = (yield from self.read_Int16 (line))
             self.out = y    = (yield from self.read_Int16 (line))
             self.out = font = (yield from self.read_Int16 (line))
-            self.out = self.assert_font_range(font)
+            self.out = self.assert_font(font)
             self.out = opts = (yield from self.read_UInt16(line))
             self.out = s    = (yield from self.read_String(line))
             cmd = coproc.CMD_TEXT(*u32, x, y, font, opts, s)
@@ -649,7 +649,7 @@ class Fsm:
             self.out = w    = (yield from self.read_Int16 (line))
             self.out = h    = (yield from self.read_Int16 (line))
             self.out = font = (yield from self.read_Int16 (line))
-            self.out = self.assert_font_range(font)
+            self.out = self.assert_font(font)
             self.out = opts = (yield from self.read_UInt16(line))
             self.out = s    = (yield from self.read_String(line))
             cmd = coproc.CMD_BUTTON(*u32, x, y, w, h, font, opts, s)
@@ -685,18 +685,18 @@ class Fsm:
         elif u32.val == 0xffffff0b:
             self.out = x0   = (yield from self.read_Int16 (line))
             self.out = y0   = (yield from self.read_Int16 (line))
-            self.out = rgb0 = (yield from self.read_UInt16(line))
+            self.out = rgb0 = (yield from self.read_UInt32(line))
             self.out = x1   = (yield from self.read_Int16 (line))
             self.out = y1   = (yield from self.read_Int16 (line))
-            self.out = rgb1 = (yield from self.read_UInt16(line))
+            self.out = rgb1 = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_GRADIENT(*u32, x0, y0, rgb0, x1, y1, rgb1)
         elif u32.val == 0xffffff57:
             self.out = x0    = (yield from self.read_Int16 (line))
             self.out = y0    = (yield from self.read_Int16 (line))
-            self.out = argb0 = (yield from self.read_UInt16(line))
+            self.out = argb0 = (yield from self.read_UInt32(line))
             self.out = x1    = (yield from self.read_Int16 (line))
             self.out = y1    = (yield from self.read_Int16 (line))
-            self.out = argb1 = (yield from self.read_UInt16(line))
+            self.out = argb1 = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_GRADIENTA(*u32, x0, y0, argb0, x1, y1, argb1)
         elif u32.val == 0xffffff0e:
             self.out = x    = (yield from self.read_Int16 (line))
@@ -704,7 +704,7 @@ class Fsm:
             self.out = w    = (yield from self.read_Int16 (line))
             self.out = h    = (yield from self.read_Int16 (line))
             self.out = font = (yield from self.read_Int16 (line))
-            self.out = self.assert_font_range(font)
+            self.out = self.assert_font(font)
             self.out = opts = (yield from self.read_UInt16(line))
             self.out = s    = (yield from self.read_String(line))
             cmd = coproc.CMD_KEYS(*u32, x, y, w, h, font, opts, s)
@@ -748,7 +748,7 @@ class Fsm:
             self.out = y    = (yield from self.read_Int16 (line))
             self.out = w    = (yield from self.read_Int16 (line))
             self.out = font = (yield from self.read_Int16 (line))
-            self.out = self.assert_font_range(font)
+            self.out = self.assert_font(font)
             self.out = opts = (yield from self.read_UInt16(line))
             self.out = state= (yield from self.read_UInt16(line))
             self.out = s    = (yield from self.read_String(line))
@@ -757,7 +757,7 @@ class Fsm:
             self.out = x    = (yield from self.read_Int16 (line))
             self.out = y    = (yield from self.read_Int16 (line))
             self.out = font = (yield from self.read_Int16 (line))
-            self.out = self.assert_font_range(font)
+            self.out = self.assert_font(font)
             self.out = opts = (yield from self.read_UInt16(line))
             self.out = n    = (yield from self.read_Int32 (line))
             cmd = coproc.CMD_NUMBER(*u32, x, y, font, opts, n)
