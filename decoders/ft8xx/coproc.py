@@ -577,7 +577,7 @@ class CMD_BUTTON (Command):
     y      :  Int16 # Y-coordinate of button top-left, in pixels
     w      :  Int16 # width of button, in pixels
     h      :  Int16 # height of button, in pixels
-    font   :  Int16 # bitmap handle to specify the font used in the button label
+    font   : UInt16 # bitmap handle to specify the font used in the button label
     options: UInt16 #
     s      : String # button label
 

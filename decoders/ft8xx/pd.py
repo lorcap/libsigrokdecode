@@ -257,13 +257,14 @@ class Fsm:
 
     def read_String (self, line) -> coproc.String:
         '''Read a '\0'-terminated string up to 4-byte boundary.'''
-        (ss, es, s) = self.read_data(line)
+        (ss, es, s) = self.read_data(line, eol=True)
         return coproc.String(ss, es, s.decode(errors='ignore'))
 
-    def read_data (self, line, num: int = 0) -> Tuple[int, int, ByteString]:
+    def read_data (self, line, num: int = 0, *, eol: bool = False)\
+            -> Tuple[int, int, ByteString]:
         '''Read `num` bytes or until '\0'.'''
-        if not num:
-            return [0, 0, bytearray()]
+        if num == 0 and eol == False:
+            return (0, 0, bytearray())
 
         self.size = 1
         yield from self.read(line, self.size)
@@ -271,7 +272,7 @@ class Fsm:
         count = 1
 
         data = bytearray()
-        while num or self.val[-1]:
+        while eol == False or self.val[-1]:
             data.append(self.val[-1])
             if count == num:
                 break
@@ -279,7 +280,7 @@ class Fsm:
             yield from self.read(line, self.size)
         es = self.es[-1]
 
-        return [ss, es, data]
+        return (ss, es, data)
 
     def read (self, line, count: int) -> None:
         '''Read up-to 'count' bytes from MISO/MOSI (max: 4).'''
