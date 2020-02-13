@@ -735,11 +735,37 @@ class Fsm:
             self.out = val  = (yield from self.read_UInt16(line))
             self.out = rang = (yield from self.read_UInt16(line))
             cmd = coproc.CMD_SLIDER(*u32, x, y, w, h, opts, val, rang)
-            # CMD_DIAL
-            # CMD_TOGGLE
-            # CMD_NUMBER
-            # CMD_SETBASE
-            # CMD_FILLWIDTH
+        elif u32.val == 0xffffff2d:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = r    = (yield from self.read_Int16 (line))
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = val  = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_DIAL(*u32, x, y, r, opts, val)
+        elif u32.val == 0xffffff12:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = w    = (yield from self.read_Int16 (line))
+            self.out = font = (yield from self.read_Int16 (line))
+            self.out = self.assert_font_range(font)
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = state= (yield from self.read_UInt16(line))
+            self.out = s    = (yield from self.read_String(line))
+            cmd = coproc.CMD_TOGGLE(*u32, x, y, w, font, opts, state, s)
+        elif u32.val == 0xffffff2e:
+            self.out = x    = (yield from self.read_Int16 (line))
+            self.out = y    = (yield from self.read_Int16 (line))
+            self.out = font = (yield from self.read_Int16 (line))
+            self.out = self.assert_font_range(font)
+            self.out = opts = (yield from self.read_UInt16(line))
+            self.out = n    = (yield from self.read_Int32 (line))
+            cmd = coproc.CMD_NUMBER(*u32, x, y, font, opts, n)
+        elif u32.val == 0xffffff38:
+            self.out = b = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_SETBASE(*u32, b)
+        elif u32.val == 0xffffff58:
+            self.out = s = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_FILLWIDTH(*u32, s)
 
         #-- Commands to operate on memory ----------------------------------#
         elif u32.val == 0xffffff18:

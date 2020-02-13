@@ -90,7 +90,7 @@ class Command (annotation.Command):
 
     @property
     def h_str (self) -> str:
-        return f'{self.h.val}px'
+        return self._px_str(self.h.val)
 
     @property
     def num_str (self) -> str:
@@ -246,14 +246,6 @@ class Command (annotation.Command):
     def result_str (self) -> str:
         return f'({self.result.val})'
 
-    @staticmethod
-    def _argb (val: int) -> Tuple[int, int, int, int]:
-        a = (self.c.val & 0xff000000) >> 24
-        r = (self.c.val & 0x00ff0000) >> 16
-        g = (self.c.val & 0x0000ff00) >>  8
-        b = (self.c.val & 0x000000ff) >>  0
-        return (a, r, g, b)
-
     @property
     def rgb_str (self) -> str:
         (a, r, g, b) = self._argb(c.val)
@@ -269,55 +261,67 @@ class Command (annotation.Command):
 
     @property
     def tx0_str (self) -> str:
-        return f'{self.tx0.val}px'
+        return self._px_str(self.tx0.val)
 
     @property
     def tx1_str (self) -> str:
-        return f'{self.tx1.val}px'
+        return self._px_str(self.tx1.val)
 
     @property
     def tx2_str (self) -> str:
-        return f'{self.tx2.val}px'
+        return self._px_str(self.tx2.val)
 
     @property
     def ty0_str (self) -> str:
-        return f'{self.ty0.val}px'
+        return self._px_str(self.ty0.val)
 
     @property
     def ty1_str (self) -> str:
-        return f'{self.ty1.val}px'
+        return self._px_str(self.ty1.val)
 
     @property
     def ty2_str (self) -> str:
-        return f'{self.ty2.val}px'
+        return self._px_str(self.ty2.val)
 
     @property
     def x_str (self) -> str:
-        return f'{self.x.val}px'
+        return self._px_str(self.x.val)
 
     @property
     def x1_str (self) -> str:
-        return f'{self.x1.val}px'
+        return self._px_str(self.x1.val)
 
     @property
     def x2_str (self) -> str:
-        return f'{self.x2.val}px'
+        return self._px_str(self.x2.val)
 
     @property
     def y_str (self) -> str:
-        return f'{self.y.val}px'
+        return self._px_str(self.y.val)
 
     @property
     def y1_str (self) -> str:
-        return f'{self.y1.val}px'
+        return self._px_str(self.y1.val)
 
     @property
     def y2_str (self) -> str:
-        return f'{self.y2.val}px'
+        return self._px_str(self.y2.val)
 
     @property
     def w_str (self) -> str:
-        return f'{self.w.val}px'
+        return self._px_str(self.w.val)
+
+    @staticmethod
+    def _argb (val: int) -> Tuple[int, int, int, int]:
+        a = (self.c.val & 0xff000000) >> 24
+        r = (self.c.val & 0x00ff0000) >> 16
+        g = (self.c.val & 0x0000ff00) >>  8
+        b = (self.c.val & 0x000000ff) >>  0
+        return (a, r, g, b)
+
+    @staticmethod
+    def _px_str (val: int) -> str:
+        return f'{val}px'
 
 # ------------------------------------------------------------------------- #
 
@@ -717,6 +721,8 @@ class CMD_TOGGLE (Command):
 class CMD_FILLWIDTH (Command):
     '''Set the text fill width.'''
     s      : UInt32 # line fill width, in pixels
+
+    s_str = Command._px_str
 
 @dataclass
 class CMD_TEXT (Command):
