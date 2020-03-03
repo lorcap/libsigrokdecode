@@ -155,6 +155,31 @@ class Command (Annotation):
         return [f.name for f in dataclasses.fields(self)
                 if not f.name.endswith('_')]
 
+    @staticmethod
+    def _fixed_point_str (val: int, int_len: int, dec_len: int) -> str:
+        '''Return a string representation of a fixed-point value, "int.dec"-bit long.'''
+        tot_len = int_len + dec_len
+        assert(tot_len <= 32)
+        v = val / 2**dec_len
+        i = (val >> dec_len) & (2**int_len - 1)
+        d = (val >> 0      ) & (2**dec_len - 1)
+        return f'{v} ({i}.{d})'
+
+    @staticmethod
+    def _matrix_abde_str (v: int, p: int = -1) -> str:
+        '''Return a string representation of a matrix transformation coefficients A/B/D/E.'''
+        if p not in (0, 1):
+            p = (v >> 17) & 0x1
+        v = v & 0xffff
+        return _fixed_point_str(v, 8,  8) if p == 0 else\
+               _fixed_point_str(v, 1, 15)
+
+    @staticmethod
+    def _matrix_cf_str (v: int) -> str:
+        '''Return a string representation of a matrix transformation coefficient C/F.'''
+        return _fixed_point_str(v, 15, 8)
+
+
 #---------------------------------------------------------------------------#
 
 @dataclass

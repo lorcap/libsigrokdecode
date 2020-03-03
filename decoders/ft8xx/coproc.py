@@ -71,6 +71,13 @@ class Command (annotation.Command):
         par_str = '; '.join(str_list)
         return [f'{self.name_}({par_str})']
 
+    def a_angle_str (self) -> str:
+        return str(self.a.val*65536/360)
+
+    @property
+    def a_matrix_str (self) -> str:
+        return Command._matrix_abde_str(self.a.val)
+
     @property
     def argb0_str (self) -> str:
         return self._argb_str(self.argb0.val)
@@ -84,12 +91,32 @@ class Command (annotation.Command):
         return self._rgb_str(self.c.val)
 
     @property
+    def b_matrix_str (self) -> str:
+        return Command._matrix_abde_str(self.b.val)
+
+    @property
+    def c_matrix_str (self) -> str:
+        return Command._matrix_cf_str(self.c.val)
+
+    @property
     def ch_str (self) -> str:
         return self._dec_str(self.ch.val)
 
     @property
+    def d_matrix_str (self) -> str:
+        return Command._matrix_abde_str(self.d.val)
+
+    @property
     def dst_str (self) -> str:
         return self._hex_str(self.dst.val)
+
+    @property
+    def e_matrix_str (self) -> str:
+        return Command._matrix_abde_str(self.e.val)
+
+    @property
+    def f_matrix_str (self) -> str:
+        return Command._matrix_cf_str(self.f.val)
 
     @property
     def font_str (self) -> str:
@@ -266,12 +293,32 @@ class Command (annotation.Command):
         return self._rgb_str(self.rgb1.val)
 
     @property
+    def s_px_str (self) -> str:
+        return Command._px_str(self.s.val)
+
+    @property
+    def s_scale_str (self) -> str:
+        return Command._scale_str(self.s.val)
+
+    @property
     def size_str (self) -> str:
         return self._size_str(self.size.val)
 
     @property
     def src_str (self) -> str:
         return self._hex_str(self.src.val)
+
+    @property
+    def sx_str (self) -> str:
+        return Command._scale_str(self.sx)
+
+    @property
+    def sy_str (self) -> str:
+        return Command._scale_str(self.sy)
+
+    @property
+    def tx_str (self) -> str:
+        return Command._fixed_point_str(self.tx, 16, 16)
 
     @property
     def tx0_str (self) -> str:
@@ -284,6 +331,10 @@ class Command (annotation.Command):
     @property
     def tx2_str (self) -> str:
         return self._px_str(self.tx2.val)
+
+    @property
+    def ty_str (self) -> str:
+        return Command._fixed_point_str(self.ty, 16, 16)
 
     @property
     def ty0_str (self) -> str:
@@ -346,6 +397,11 @@ class Command (annotation.Command):
     def _rgb_str (rgb: int) -> str:
         a, r, g, b = Command._argb(rgb)
         return f'rgb({r},{g},{b})'
+
+    @staticmethod
+    def _scale_str (v: int) -> str:
+        '''Return a string representation of a scale transformation.'''
+        return _fixed_point_str(v, 16, 16)
 
 # ------------------------------------------------------------------------- #
 
@@ -734,7 +790,7 @@ class CMD_FILLWIDTH (Command):
     '''Set the text fill width.'''
     s      : UInt32 # line fill width, in pixels
 
-    s_str = Command._px_str
+    s_str = s_px_str
 
 @dataclass
 class CMD_TEXT (Command):
@@ -779,6 +835,13 @@ class CMD_GETMATRIX (Command):
     e      :  Int32 # output parameter; written with matrix coefficient e
     f      :  Int32 # output parameter; written with matrix coefficient f
 
+    a_str = a_matrix_str
+    b_str = b_matrix_str
+    c_str = c_matrix_str
+    d_str = d_matrix_str
+    e_str = e_matrix_str
+    f_str = f_matrix_str
+
 @dataclass
 class CMD_GETPTR (Command):
     '''Get the end memory address of data inflated by CMD_INFLATE.'''
@@ -802,6 +865,8 @@ class CMD_ROTATE (Command):
     '''Apply a rotation to the current matrix.'''
     a      :  Int32 # clockwise rotation angle
 
+    a_str = a_angle_str
+
 @dataclass
 class CMD_ROTATEAROUND (Command):
     '''Apply a rotation and scale around a specified coordinate.'''
@@ -809,6 +874,9 @@ class CMD_ROTATEAROUND (Command):
     y      :  Int32 # center of rotation/scaling, x-coordinate
     a      :  Int32 # clockwise rotation angle
     s      :  Int32 # scale factor
+
+    a_str = a_angle_str
+    s_str = s_scale_str
 
 @dataclass
 class CMD_TRANSLATE (Command):

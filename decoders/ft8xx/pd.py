@@ -837,13 +837,35 @@ class Fsm:
             cmd = coproc.CMD_MEDIAFIFO(*u32, ptr, size)
 
         #-- Commands for setting the bitmap transform matrix ---------------#
-            # CMD_LOADIDENTITY
-            # CMD_TRANSLATE
-            # CMD_SCALE
-            # CMD_ROTATE
-            # CMD_ROTATEAROUND
-            # CMD_SETMATRIX
-            # CMD_GETMATRIX
+        elif u32.val == 0xffffff26:
+            cmd = coproc.CMD_LOADIDENTITY(*u32)
+        elif u32.val == 0xffffff27:
+            self.out = tx   = (yield from self.read_Int32(line))
+            self.out = ty   = (yield from self.read_Int32(line))
+            cmd = coproc.CMD_TRANSLATE(*u32, tx, ty)
+        elif u32.val == 0xffffff28:
+            self.out = sx   = (yield from self.read_Int32(line))
+            self.out = sy   = (yield from self.read_Int32(line))
+            cmd = coproc.CMD_SCALE(*u32, sx, sy)
+        elif u32.val == 0xffffff29:
+            self.out = a    = (yield from self.read_Int32(line))
+            cmd = coproc.CMD_ROTATE(*u32, a)
+        elif u32.val == 0xffffff51:
+            self.out = x    = (yield from self.read_Int32(line))
+            self.out = y    = (yield from self.read_Int32(line))
+            self.out = a    = (yield from self.read_Int32(line))
+            self.out = s    = (yield from self.read_Int32(line))
+            cmd = coproc.CMD_ROTATEAROUND(*u32, x, y, a, s)
+        elif u32.val == 0xffffff2a:
+            cmd = coproc.CMD_SETMATRIX(*u32)
+        elif u32.val == 0xffffff2a:
+            self.out = a    = (yield from self.read_Int32(line))
+            self.out = b    = (yield from self.read_Int32(line))
+            self.out = c    = (yield from self.read_Int32(line))
+            self.out = d    = (yield from self.read_Int32(line))
+            self.out = e    = (yield from self.read_Int32(line))
+            self.out = f    = (yield from self.read_Int32(line))
+            cmd = coproc.CMD_GETMATRIX(*u32, a, b, c, d, e, f)
 
         #-- Commands for flash operation -----------------------------------#
             # CMD_FLASHERASE
