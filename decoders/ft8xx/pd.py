@@ -218,13 +218,12 @@ class Fsm:
                 self.out = chunk = (yield from self.read_DataChunk(line, size, count))
                 chunks.append(chunk)
                 count += size
-            self.out = (yield from self.read_DataPadding(line, num))
         return coproc.DataBytes(0, 0, tuple(chunks))
 
     def read_DataPadding (self, line, num: int) -> coproc.Padding:
         '''Read a coproc's sequence of up-to-3 padding bytes.'''
-        self.size = 4 - (num % 4)
-        ss, es, _ = (yield from self.read_data(line, self.size))
+        size = 4 - (num % 4)
+        ss, es, _ = (yield from self.read_data(line, size))
         return coproc.Padding(ss, es)
 
     def read_Int16 (self, line) -> coproc.Int16:
@@ -258,8 +257,7 @@ class Fsm:
     def read_String (self, line) -> coproc.String:
         '''Read a '\0'-terminated string up to 4-byte boundary.'''
         ss, es, s = (yield from self.read_data(line, eol=True))
-        self.out = (yield from self.read_DataPadding(line, len(s) + 1))
-        return coproc.String(ss, es, s.decode(errors='ignore'))
+        return coproc.String(ss, es, s.decode(errors='replace'))
 
     def read_data (self, line, num: int = 0, eol: bool = False)\
             -> Tuple[int, int, ByteString]:
@@ -267,8 +265,8 @@ class Fsm:
         if num == 0 and eol == False:
             return (0, 0, bytearray())
 
-        self.size = 1
-        yield from self.read(line, self.size)
+        self.size = num if num else 1
+        yield from self.read(line, 1)
         ss = self.ss[-1]
         count = 1
 
@@ -278,7 +276,7 @@ class Fsm:
             if count == num:
                 break
             count += 1
-            yield from self.read(line, self.size)
+            yield from self.read(line, 1)
         es = self.es[-1]
 
         return (ss, es, data)
@@ -594,6 +592,8 @@ class Fsm:
             cmd = displist.NOP(*u32)
         elif msb == 0x1e:
             cmd = displist.JUMP(*u32, dest=u32[15:0])
+            if not cmd.dest_is_valid():
+                self.out = w = warning.InvalidParameterValue(u32.ss, u32.es, cmd.dest, 'dest')
         elif msb == 0x25:
             cmd = displist.MACRO(*u32, m=u32[1])
         elif msb == 0x1d:
@@ -934,6 +934,9 @@ class Fsm:
 
         cmd.es_ = self.es[-1]
         self.addr = memmap.add(self.addr, 4 + self.mosi_size - mosi_size)
+        if self.addr % 4:
+            self.out = (yield from self.read_DataPadding(line, self.addr))
+            self.addr = memmap.add(self.addr, self.size)
         return cmd
 
 class Decoder (srd.Decoder):

@@ -622,7 +622,7 @@ class REG_INT_FLAGS (Reg):
         elif self.val & 2**5: flags.append('CMDEMPTY'    )
         elif self.val & 2**6: flags.append('CMDFLAG'     )
         elif self.val & 2**7: flags.append('CONVCOMPLETE')
-        return '|'.join(flags)
+        return '|'.join(flags) if flags else 'none'
 
 @dataclass
 class REG_INT_EN (Reg):
@@ -1181,9 +1181,21 @@ class REG_CTOUCH_TOUCH3_XY (Reg):
     bits = 32
 
 @dataclass
-class REG_DATESTAMP (Reg):
+class REG_DATESTAMP0 (Reg):
     addr = 0x302564
-    bits = 128
+    bits = 32
+@dataclass
+class REG_DATESTAMP1 (Reg):
+    addr = 0x302568
+    bits = 32
+@dataclass
+class REG_DATESTAMP2 (Reg):
+    addr = 0x30256c
+    bits = 32
+@dataclass
+class REG_DATESTAMP3 (Reg):
+    addr = 0x302570
+    bits = 32
 
 @dataclass
 class REG_CMDB_SPACE (Reg):

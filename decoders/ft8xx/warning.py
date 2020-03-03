@@ -46,7 +46,7 @@ class InvalidParameterValue (Warning):
 
     @property
     def strings_ (self) -> List[str]:
-        return [f'invalid parameter value: {self._par_str(self.name, self.val)}']
+        return [f'invalid parameter value: {self._par_str(self.val, self.name)}']
 
 @dataclass
 class MissingDummy (Warning):
@@ -78,7 +78,7 @@ class OutOfFontRange (Warning):
 
     @property
     def strings_ (self) -> List[str]:
-        return ['out of RAM_G range']
+        return ['out of font range']
 
 @dataclass
 class OutOfRamGRange (Warning):

@@ -49,10 +49,7 @@ class Branch ():
 
     @property
     def dest_str (self) -> str:
-        if self.dest_is_valid():
-            return self._par_str(memmap.RAM_DL.begin + self.dest)
-        else:
-            return ''
+        return self._par_str(memmap.RAM_DL.begin + self.dest)
 
 @dataclass
 class Format ():
@@ -171,68 +168,69 @@ class BITMAP_SIZE (Command):
     def filter_str (self) -> str:
             return 'BILINEAR' if self.filter else 'NEAREST'
 
-        @property
-        def wrapx_str (self) -> str:
-            return 'REPEAT' if self.wrapx else 'BORDER'
+    @property
+    def wrapx_str (self) -> str:
+        return 'REPEAT' if self.wrapx else 'BORDER'
 
-        @property
-        def wrapy_str (self) -> str:
-            return 'REPEAT' if self.wrapy else 'BORDER'
+    @property
+    def wrapy_str (self) -> str:
+        return 'REPEAT' if self.wrapy else 'BORDER'
 
-    @dataclass
-    class BITMAP_SIZE_H (Command):
-        '''Specify the 2 most significant bits for BITMAP_SIZE.'''
-        width: int  # bitmap width
-        height: int # bitmap height
+@dataclass
+class BITMAP_SIZE_H (Command):
+    '''Specify the 2 most significant bits for BITMAP_SIZE.'''
+    width: int  # bitmap width
+    height: int # bitmap height
 
-    @dataclass
-    class BITMAP_SOURCE (Command):
-        '''Specify the source address of bitmap data in BT815/6 graphics memmap RAM_G or flash memmap.'''
-        addr: int
+@dataclass
+class BITMAP_SOURCE (Command):
+    '''Specify the source address of bitmap data in BT815/6 graphics memmap RAM_G or flash memmap.'''
+    addr: int
 
-        @property
-        def addr_str (self) -> str:
-            s = memmap.space(self.addr)
-            if self.addr & 0x800000:
-                return '{0}@{1}'.format(4*(self.addr - 0x800000), s)
-            else:
-                return self._addr_str(self.addr)
+    @property
+    def addr_str (self) -> str:
+        s = memmap.space(self.addr)
+        if self.addr & 0x800000:
+            return '{0}@{1}'.format(4*(self.addr - 0x800000), s)
+        else:
+            return self._addr_str(self.addr)
 
-    @dataclass
-    class BITMAP_SWIZZLE (Command):
-        '''Set the source for the red, green, blue and alpha channels of a bitmap.'''
-        r: int  # red component source channel
-        g: int  # green component source channel
-        b: int  # blue component source channel
-        a: int  # alpha component source channel
+@dataclass
+class BITMAP_SWIZZLE (Command):
+    '''Set the source for the red, green, blue and alpha channels of a bitmap.'''
+    r: int  # red component source channel
+    g: int  # green component source channel
+    b: int  # blue component source channel
+    a: int  # alpha component source channel
 
-        def _rgba_str (self, val: int) -> str:
-            if   val == 0: return 'ZERO'
-            elif val == 1: return 'ONE'
-            elif val == 2: return 'RED'
-            elif val == 3: return 'GREEN'
-            elif val == 4: return 'BLUE'
-            elif val == 5: return 'ALPHA'
-            else         : return ''
+    @staticmethod
+    def _rgba_str (val: int) -> str:
+        if   val == 0: return 'ZERO'
+        elif val == 1: return 'ONE'
+        elif val == 2: return 'RED'
+        elif val == 3: return 'GREEN'
+        elif val == 4: return 'BLUE'
+        elif val == 5: return 'ALPHA'
+        else         : return ''
 
-        @property
-        def r_str (self) -> str:
-            return self._rgba_str(self.r)
+    @property
+    def r_str (self) -> str:
+        return self._rgba_str(self.r)
 
-        @property
-        def g_str (self) -> str:
-            return self._rgba_str(self.g)
+    @property
+    def g_str (self) -> str:
+        return self._rgba_str(self.g)
 
-        @property
-        def b_str (self) -> str:
-            return self._rgba_str(self.b)
+    @property
+    def b_str (self) -> str:
+        return self._rgba_str(self.b)
 
-        @property
-        def a_str (self) -> str:
-            return self._rgba_str(self.a)
+    @property
+    def a_str (self) -> str:
+        return self._rgba_str(self.a)
 
-    @dataclass
-    class BITMAP_TRANSFORM_A (Command):
+@dataclass
+class BITMAP_TRANSFORM_A (Command):
     '''Specify the A coefficient of the bitmap transform matrix.'''
     p: int  # precision control
     v: int  # component of the bitmap transform matrix
@@ -461,7 +459,8 @@ class STENCIL_OP (Command):
     sfail: int  # action to take when the stencil test fails
     spass: int  # action to take when the stencil test passes
 
-    def _action_str (self, val) -> str:
+    @staticmethod
+    def _action_str (val) -> str:
         if   val == 0: return 'ZERO'
         elif val == 1: return 'KEEP'
         elif val == 2: return 'REPLACE'

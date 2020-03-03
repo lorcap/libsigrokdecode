@@ -790,7 +790,7 @@ class CMD_FILLWIDTH (Command):
     '''Set the text fill width.'''
     s      : UInt32 # line fill width, in pixels
 
-    s_str = s_px_str
+    s_str = Command.s_px_str
 
 @dataclass
 class CMD_TEXT (Command):
@@ -835,12 +835,12 @@ class CMD_GETMATRIX (Command):
     e      :  Int32 # output parameter; written with matrix coefficient e
     f      :  Int32 # output parameter; written with matrix coefficient f
 
-    a_str = a_matrix_str
-    b_str = b_matrix_str
-    c_str = c_matrix_str
-    d_str = d_matrix_str
-    e_str = e_matrix_str
-    f_str = f_matrix_str
+    a_str = Command.a_matrix_str
+    b_str = Command.b_matrix_str
+    c_str = Command.c_matrix_str
+    d_str = Command.d_matrix_str
+    e_str = Command.e_matrix_str
+    f_str = Command.f_matrix_str
 
 @dataclass
 class CMD_GETPTR (Command):
@@ -865,7 +865,7 @@ class CMD_ROTATE (Command):
     '''Apply a rotation to the current matrix.'''
     a      :  Int32 # clockwise rotation angle
 
-    a_str = a_angle_str
+    a_str = Command.a_angle_str
 
 @dataclass
 class CMD_ROTATEAROUND (Command):
@@ -875,8 +875,8 @@ class CMD_ROTATEAROUND (Command):
     a      :  Int32 # clockwise rotation angle
     s      :  Int32 # scale factor
 
-    a_str = a_angle_str
-    s_str = s_scale_str
+    a_str = Command.a_angle_str
+    s_str = Command.s_scale_str
 
 @dataclass
 class CMD_TRANSLATE (Command):

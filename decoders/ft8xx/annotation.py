@@ -171,13 +171,13 @@ class Command (Annotation):
         if p not in (0, 1):
             p = (v >> 17) & 0x1
         v = v & 0xffff
-        return _fixed_point_str(v, 8,  8) if p == 0 else\
-               _fixed_point_str(v, 1, 15)
+        return Command._fixed_point_str(v, 8,  8) if p == 0 else\
+               Command._fixed_point_str(v, 1, 15)
 
     @staticmethod
     def _matrix_cf_str (v: int) -> str:
         '''Return a string representation of a matrix transformation coefficient C/F.'''
-        return _fixed_point_str(v, 15, 8)
+        return Command._fixed_point_str(v, 15, 8)
 
 
 #---------------------------------------------------------------------------#
