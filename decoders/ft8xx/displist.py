@@ -52,44 +52,6 @@ class Branch ():
         return self._par_str(memmap.RAM_DL.begin + self.dest)
 
 @dataclass
-class Format ():
-    '''Class common to bitmap format commands.'''
-
-    @property
-    def format_str (self) -> str:
-        if   self.format ==     0: return 'ARGB1555'
-        elif self.format ==     1: return 'L1'
-        elif self.format ==     2: return 'L4'
-        elif self.format ==     3: return 'L8'
-        elif self.format ==     4: return 'RGB322'
-        elif self.format ==     5: return 'ARGB2'
-        elif self.format ==     6: return 'ARGB4'
-        elif self.format ==     7: return 'RGB565'
-        elif self.format ==     9: return 'TEXT8X8'
-        elif self.format ==    10: return 'TEXTVGA'
-        elif self.format ==    11: return 'BARGRAPH'
-        elif self.format ==    14: return 'PALETTED565'
-        elif self.format ==    15: return 'PALETTED4444'
-        elif self.format ==    16: return 'PALETTED8'
-        elif self.format ==    17: return 'L2'
-        elif self.format ==    31: return 'GLFORMAT'
-        elif self.format == 37808: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 4,  4)
-        elif self.format == 37809: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 5,  4)
-        elif self.format == 37810: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 5,  5)
-        elif self.format == 37811: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 6,  5)
-        elif self.format == 37812: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 6,  6)
-        elif self.format == 37813: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 8,  5)
-        elif self.format == 37814: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 8,  6)
-        elif self.format == 37815: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 8,  8)
-        elif self.format == 37816: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10,  5)
-        elif self.format == 37817: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10,  6)
-        elif self.format == 37818: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10,  8)
-        elif self.format == 37819: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10, 10)
-        elif self.format == 37820: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(12, 10)
-        elif self.format == 37821: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(12, 12)
-        else                     : return ''
-
-@dataclass
 class Func ():
     '''Class common to function test.'''
     func: int   # test function
@@ -133,7 +95,7 @@ class BEGIN (Command):
         else               : return ''
 
 @dataclass
-class BITMAP_EXT_FORMAT (Format, Command):
+class BITMAP_EXT_FORMAT (Command):
     '''Specify the extended format of the bitmap.'''
     format: int # bitmap pixel format
 
@@ -143,11 +105,15 @@ class BITMAP_HANDLE (Command):
     handle: int # bitmap handle
 
 @dataclass
-class BITMAP_LAYOUT (Format, Command):
+class BITMAP_LAYOUT (Command):
     '''Specify the source bitmap memmap format and layout for the current handle.'''
     format: int     # bitmap pixel format
     linestride: int # bitmap line strides, in bytes
     height: int     # bitmap height, in lines
+
+    @property
+    def format_str (self) -> str:
+        return Command._format_str(self.format)
 
 @dataclass
 class BITMAP_LAYOUT_H (Command):

@@ -71,8 +71,9 @@ class Command (annotation.Command):
         par_str = '; '.join(str_list)
         return [f'{self.name_}({par_str})']
 
+    @property
     def a_angle_str (self) -> str:
-        return str(self.a.val*65536/360)
+        return f'{round(self.a.val/65536*360, 1)}°'
 
     @property
     def a_matrix_str (self) -> str:
@@ -119,12 +120,24 @@ class Command (annotation.Command):
         return Command._matrix_cf_str(self.f.val)
 
     @property
+    def fmt_str (self) -> str:
+        return Command._format_str(self.fmt.val)
+
+    @property
     def font_str (self) -> str:
         return str(self.font.val)
 
     @property
+    def format_str (self) -> str:
+        return Command._format_str(self.format.val)
+
+    @property
     def h_str (self) -> str:
         return self._px_str(self.h.val)
+
+    @property
+    def height_str (self) -> str:
+        return self._px_str(self.height.val)
 
     @property
     def num_str (self) -> str:
@@ -154,59 +167,51 @@ class Command (annotation.Command):
             elif self.name_ == 'CMD_LOADIMAGE':
                 ret.append('OPT_RGB565')
             else:
-                ret.append(str(0))
+                ret.append('(none)')
 
-        bit = 1
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_MONO:
             if self.name_ == 'CMD_LOADIMAGE':
                 ret.append('OPT_MONO')
             else:
                 ret.append(str(bit))
 
-        bit = 2
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_NODL:
             if self.name_ == 'CMD_LOADIMAGE':
                 ret.append('OPT_NODL')
             else:
                 ret.append(str(bit))
 
-        bit = 4
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_NOTEAR:
             if self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_NOTEAR')
             else:
                 ret.append(str(bit))
 
-        bit = 8
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_FULLSCREEN:
             if self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_FULLSCREEN')
             else:
                 ret.append(str(bit))
 
-        bit = 16
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_MEDIAFIFO:
             if self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_MEDIAFIFO')
             else:
                 ret.append(str(bit))
 
-        bit = 32
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_SOUND:
             if self.name_ == 'CMD_PLAYVIDEO':
                 ret.append('OPT_SOUND')
             else:
                 ret.append(str(bit))
 
-        bit = 64
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_FLASH:
             if self.name_ in CMD_ILPV:
                 ret.append('OPT_FLASH')
             else:
                 ret.append(str(bit))
 
-        bit = 256
-        if self.options.val & bit == bit:
+        if self.options.val & (OPT_FLAT|OPT_SIGNED):
             if self.name_ in CMD_BCKG_SDTP_S:
                 ret.append('OPT_FLAT')
             elif self.name_ == 'CMD_NUMBER':
@@ -214,27 +219,31 @@ class Command (annotation.Command):
             else:
                 ret.append(str(bit))
 
-        bit = 512
-        if self.options.val & 1536 == bit:
+        if self.options.val & OPT_CENTERX:
             if self.name_ in CMD_KTN:
                 ret.append('OPT_CENTERX')
             else:
                 ret.append(str(bit))
 
-        bit = 1024
-        if self.options.val & 1536 == bit:
+        if self.options.val & OPT_CENTERY:
             if self.name_ in CMD_KTN:
                 ret.append('OPT_CENTERY')
             else:
                 ret.append(str(bit))
 
-        bit = 1536
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_CENTER:
             if self.name_ in CMD_KTN:
                 ret.append('OPT_CENTER')
+            else:
+                ret.append(str(bit))
 
-        bit = 2048
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_RIGHTX:
+            if self.name_ in CMD_KTN:
+                ret.append('OPT_RIGHTX')
+            else:
+                ret.append(str(bit))
+
+        if self.options.val & (OPT_NOBACK|OPT_FORMAT):
             if self.name_ in CMD_CG:
                 ret.append('OPT_NOBACK')
             elif self.name_ in CMD_TBT:
@@ -242,15 +251,13 @@ class Command (annotation.Command):
             else:
                 ret.append(str(bit))
 
-        bit = 8192
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_NOTICKS:
             if self.name_ in CMD_CG:
                 ret.append('OPT_NOTICKS')
             else:
                 ret.append(str(bit))
 
-        bit = 16384
-        if self.options.val & 49152 == bit:
+        if self.options.val & (OPT_NOHM|OPT_NOPOINTER):
             if self.name_ == 'CMD_CLOCK':
                 ret.append('OPT_NOHM')
             elif self.name_ == 'CMD_GAUGE':
@@ -258,15 +265,13 @@ class Command (annotation.Command):
             else:
                 ret.append(str(bit))
 
-        bit = 32768
-        if self.options.val & 49152 == bit:
+        if self.options.val & OPT_NOSECS:
             if self.name_ == 'CMD_CLOCK':
                 ret.append('OPT_NOSECS')
             else:
                 ret.append(str(bit))
 
-        bit = 49152
-        if self.options.val & bit == bit:
+        if self.options.val & OPT_NOHANDS:
             if self.name_ == 'CMD_CLOCK':
                 ret.append('OPT_NOHANDS')
 
@@ -310,15 +315,15 @@ class Command (annotation.Command):
 
     @property
     def sx_str (self) -> str:
-        return Command._scale_str(self.sx)
+        return Command._scale_str(self.sx.val)
 
     @property
     def sy_str (self) -> str:
-        return Command._scale_str(self.sy)
+        return Command._scale_str(self.sy.val)
 
     @property
     def tx_str (self) -> str:
-        return Command._fixed_point_str(self.tx, 16, 16)
+        return Command._fixed_point_str(self.tx.val, 16, 16)
 
     @property
     def tx0_str (self) -> str:
@@ -334,7 +339,7 @@ class Command (annotation.Command):
 
     @property
     def ty_str (self) -> str:
-        return Command._fixed_point_str(self.ty, 16, 16)
+        return Command._fixed_point_str(self.ty.val, 16, 16)
 
     @property
     def ty0_str (self) -> str:
@@ -376,6 +381,10 @@ class Command (annotation.Command):
     def w_str (self) -> str:
         return self._px_str(self.w.val)
 
+    @property
+    def width_str (self) -> str:
+        return self._px_str(self.width.val)
+
     @staticmethod
     def _argb (val: int) -> Tuple[int, int, int, int]:
         a = (val & 0xff000000) >> 24
@@ -401,7 +410,7 @@ class Command (annotation.Command):
     @staticmethod
     def _scale_str (v: int) -> str:
         '''Return a string representation of a scale transformation.'''
-        return _fixed_point_str(v, 16, 16)
+        return Command._fixed_point_str(v, 16, 16)
 
 # ------------------------------------------------------------------------- #
 
@@ -816,7 +825,7 @@ class CMD_NUMBER (Command):
     n      :  Int32 # the number to display
 
 @dataclass
-class CMD_LOADIDENTIY (Command):
+class CMD_LOADIDENTITY (Command):
     '''Set the current matrix to the identity matrix.'''
     pass
 
@@ -893,6 +902,11 @@ class CMD_CALIBRATE (Command):
 class CMD_SETROTATE (Command):
     '''Rotate the screen.'''
     r      : UInt32 # same definition as the value in REG_ROTATE
+
+    @property
+    def r_str (self) -> str:
+        r = Command._reg_rotate_str(self.r.val)
+        return r if r else '(invalid)'
 
 @dataclass
 class CMD_SPINNER (Command):

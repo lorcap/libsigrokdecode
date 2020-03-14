@@ -67,10 +67,7 @@ class Reg (annotation.Command):
 
     @property
     def _transform_str (self) -> str:
-        s = '-' if self.val & 0x8000_0000 else ''
-        i = (self.val >> 16) & 0x7fff
-        d = (self.val >>  0) & 0xffff
-        return f'{s}{i}.{d}'
+        return annotation.Annotation._fixed_point_str(self.val, 16, 16)
 
 def at (addr: int) -> Reg:
     '''Find register name at the given address.'''
@@ -344,15 +341,7 @@ class REG_ROTATE (Reg):
 
     @property
     def val_str (self) -> str:
-        if   self.val == 0b000: return 'landscape'
-        elif self.val == 0b001: return 'inverted landscape'
-        elif self.val == 0b010: return 'potrait'
-        elif self.val == 0b011: return 'inverted potrait'
-        elif self.val == 0b100: return 'mirrored landscape'
-        elif self.val == 0b101: return 'mirrored inverted landscape'
-        elif self.val == 0b110: return 'mirrored potrait'
-        elif self.val == 0b111: return 'mirrored inverted potrait'
-        else                  : return ''
+        return annotation.Annotation._reg_rotate_str(self.val)
 
 @dataclass
 class REG_OUTBITS (Reg):

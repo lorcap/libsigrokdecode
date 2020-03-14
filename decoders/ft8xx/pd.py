@@ -17,6 +17,7 @@
 ## along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
+import re
 import sigrokdecode as srd
 from typing import ByteString, List, Tuple, Union
 from . import annotation, coproc, displist, hostcmd, memmap, memory, ramreg, warning
@@ -222,9 +223,12 @@ class Fsm:
 
     def read_DataPadding (self, line, num: int) -> coproc.Padding:
         '''Read a coproc's sequence of up-to-3 padding bytes.'''
-        size = 4 - (num % 4)
-        ss, es, _ = (yield from self.read_data(line, size))
-        return coproc.Padding(ss, es)
+        if num % 4:
+            size = 4 - (num % 4)
+            ss, es, _ = (yield from self.read_data(line, size))
+            return coproc.Padding(ss, es)
+        else:
+            return coproc.Padding(0, 0)
 
     def read_Int16 (self, line) -> coproc.Int16:
         '''Read a coproc's annotated 16-bit signed integer.'''
@@ -244,7 +248,7 @@ class Fsm:
         '''Read a coproc's annotated 32-bit signed integer.'''
         self.size = 4
         yield from self.read(line, self.size)
-        return coproc.Int16(self.ss[-self.size], self.es[-1],
+        return coproc.Int32(self.ss[-self.size], self.es[-1],
                 int.from_bytes(self.val[-self.size:], byteorder='little', signed=True))
 
     def read_UInt32 (self, line) -> coproc.UInt32:
@@ -257,6 +261,7 @@ class Fsm:
     def read_String (self, line) -> coproc.String:
         '''Read a '\0'-terminated string up to 4-byte boundary.'''
         ss, es, s = (yield from self.read_data(line, eol=True))
+        self.out = (yield from self.read_DataPadding(line, len(s) + 1))
         return coproc.String(ss, es, s.decode(errors='replace'))
 
     def read_data (self, line, num: int = 0, eol: bool = False)\
@@ -328,7 +333,7 @@ class Fsm:
         assert isinstance(num, coproc.UInt32)
         return None if memmap.RAM_G.contains(ptr.val) and\
                        memmap.RAM_G.contains(memmap.add(ptr.val, num.val)) else\
-            warning.OutOfRamGRange(num.ss_, num.es_)
+            warning.OutOfRange(num.ss_, num.es_)
 
     @property
     def out (self):
@@ -379,8 +384,9 @@ class Fsm:
 
         elif byte1.val == 0x61 or byte1.val == 0x62:
             cmd = hostcmd.CLKSEL(*byte1, pll=byte2[7:6], clock=byte2[5:0])
-            if not cmd.clock_str:
-                self.out = warning.Message("invalid combination of 'clock' and 'pll'")
+            if not cmd.valid:
+                self.out = warning.Message(byte2.ss, byte2.es,
+                        "invalid combination of 'clock' and 'pll'")
 
         elif byte1.val == 0x68:
             cmd = hostcmd.RST_PULSE(*byte1)
@@ -403,10 +409,10 @@ class Fsm:
 
         if not cmd or not cmd.parameters():
             if byte2.val != 0:
-                self.out = warning.Warning(*byte2, 'Byte2 is not 00h')
+                self.out = warning.Message(byte2.ss, byte2.es, 'Byte2 is not 00h')
 
         if byte3.val != 0:
-            self.out = warning.Warning(*byte3, 'Byte3 is not 00h')
+            self.out = warning.Message(byte3.ss, byte3.es, 'Byte3 is not 00h')
 
         if cmd:
             cmd.es_ = byte3.es
@@ -642,6 +648,26 @@ class Fsm:
             self.out = self.assert_font(font)
             self.out = opts = (yield from self.read_UInt16(line))
             self.out = s    = (yield from self.read_String(line))
+            args = []
+            for match in re.finditer(r"""%                  # character specifier
+                                         ([ 0+-]         )? # flags
+                                         ([1-9][0-9]*|\* )? # field width
+                                         (\.(?:[0-9]*|\*))? # precision
+                                         ([diuoxXcs%]    )  # conversion specifier
+                                      """, s.val, re.X):
+                (flags, width, prec, conv) = match.groups()
+                if width == '*':
+                    arg = (yield from self.read_Int32(line))
+                    self.out = arg
+                    args.append(arg)
+                if prec == '*':
+                    arg = (yield from self.read_Int32(line))
+                    self.out = arg
+                    args.append(arg)
+                if conv != '%':
+                    arg = (yield from self.read_Int32(line))
+                    self.out = arg
+                    args.append(arg)
             cmd = coproc.CMD_TEXT(*u32, x, y, font, opts, s)
         elif u32.val == 0xffffff0d:
             self.out = x    = (yield from self.read_Int16 (line))
@@ -818,6 +844,14 @@ class Fsm:
             self.out = self.assert_ram_g(ptr)
             self.out = byte = (yield from self.read_DataBytes  (line, 10))
             cmd = coproc.CMD_INFLATE(*u32, ptr, byte)
+        elif u32.val == 0xffffff23:
+            self.out = result = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_GETPTR(*u32, result)
+        elif u32.val == 0xffffff25:
+            self.out = ptr    = (yield from self.read_UInt32(line))
+            self.out = width  = (yield from self.read_UInt32(line))
+            self.out = height = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_GETPROPS(*u32, ptr, width, height)
         elif u32.val == 0xffffff50:
             self.out = ptr  = (yield from self.read_UInt32   (line))
             self.out = self.assert_ram_g(ptr)
@@ -858,7 +892,7 @@ class Fsm:
             cmd = coproc.CMD_ROTATEAROUND(*u32, x, y, a, s)
         elif u32.val == 0xffffff2a:
             cmd = coproc.CMD_SETMATRIX(*u32)
-        elif u32.val == 0xffffff2a:
+        elif u32.val == 0xffffff33:
             self.out = a    = (yield from self.read_Int32(line))
             self.out = b    = (yield from self.read_Int32(line))
             self.out = c    = (yield from self.read_Int32(line))
@@ -912,14 +946,42 @@ class Fsm:
         elif u32.val == 0xffffff19:
             self.out = ptr    = (yield from self.read_UInt32(line))
             if not memmap.RAM_REG.contains(ptr.val):
-                self.out = warning.NotRamRegAddr(self.ss, self.es)
+                self.out = warning.NotRamRegAddr(ptr.ss_, ptr.es_)
             self.out = result = (yield from self.read_UInt32(line))
             cmd = coproc.CMD_REGREAD(*u32, ptr, result)
-            # CMD_CALIBRATE
-            # CMD_ROMFONT
-            # CMD_SETROTATE
-            # CMD_SETBITMAP
-            # CMD_SPINNER
+        elif u32.val == 0xffffff15:
+            self.out = result = (yield from self.read_UInt32(line))
+            cmd = coproc.CMD_CALIBRATE(*u32, result)
+        elif u32.val == 0xffffff3f:
+            self.out = font    = (yield from self.read_UInt32(line))
+            if not 0 <= font.val <= 31:
+                self.out = warning.OutOfRange(font.ss_, font.es_)
+            self.out = romslot = (yield from self.read_UInt32(line))
+            if not 0 <= romslot.val <= 31:
+                self.out = warning.OutOfRange(romslot.ss_, romslot.es_)
+            cmd = coproc.CMD_ROMFONT(*u32, font, romslot)
+        elif u32.val == 0xffffff36:
+            self.out = r = (yield from self.read_UInt32(line))
+            if not 0 <= r.val <= 7:
+                self.out = warning.OutOfRange(r.ss_, r.es_)
+            cmd = coproc.CMD_SETROTATE(*u32, r)
+        elif u32.val == 0xffffff43:
+            self.out = source = (yield from self.read_UInt32(line))
+            if not memmap.RAM_REG.contains(source.val) and\
+               not memmap.FLASH  .contains(source.val):
+                self.out = warning.OutOfRange(source.ss_, source.es_)
+            self.out = fmt    = (yield from self.read_UInt16(line))
+            self.out = width  = (yield from self.read_UInt16(line))
+            self.out = height = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_SETBITMAP(*u32, source, fmt, width, height)
+        elif u32.val == 0xffffff16:
+            self.out = x     = (yield from self.read_Int16 (line))
+            self.out = y     = (yield from self.read_Int16 (line))
+            self.out = style = (yield from self.read_UInt16(line))
+            if not 0 <= style.val <= 3:
+                self.out = warning.OutOfRange(style.ss_, style.es_)
+            self.out = scale = (yield from self.read_UInt16(line))
+            cmd = coproc.CMD_SPINNER(*u32, x, y, style, scale)
             # CMD_STOP
             # CMD_SCREENSAVER
             # CMD_SKETCH

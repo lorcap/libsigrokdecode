@@ -19,7 +19,7 @@
 
 import dataclasses
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 from . import memmap
 
 class Id:
@@ -62,8 +62,52 @@ class Annotation:
 
     @staticmethod
     def _dec_str (val: int) -> str:
-        '''Uniform representation of a frequency.'''
+        '''Uniform representation of a decimal.'''
         return f'{val:_d}'
+
+    @staticmethod
+    def _fixed_point_str (val: int, int_len: int, dec_len: int) -> str:
+        '''Return a string representation of a fixed-point value, "int.dec"-bit long.'''
+        tot_len = int_len + dec_len
+        assert(tot_len <= 32)
+        v = val / 2**dec_len
+        i = (val >> dec_len) & (2**int_len - 1)
+        d = (val >> 0      ) & (2**dec_len - 1)
+        return f'{v} ({i}.{d})'
+
+    @staticmethod
+    def _format_str (val: int) -> str:
+        if   val ==     0: return 'ARGB1555'
+        elif val ==     1: return 'L1'
+        elif val ==     2: return 'L4'
+        elif val ==     3: return 'L8'
+        elif val ==     4: return 'RGB322'
+        elif val ==     5: return 'ARGB2'
+        elif val ==     6: return 'ARGB4'
+        elif val ==     7: return 'RGB565'
+        elif val ==     9: return 'TEXT8X8'
+        elif val ==    10: return 'TEXTVGA'
+        elif val ==    11: return 'BARGRAPH'
+        elif val ==    14: return 'PALETTED565'
+        elif val ==    15: return 'PALETTED4444'
+        elif val ==    16: return 'PALETTED8'
+        elif val ==    17: return 'L2'
+        elif val ==    31: return 'GLFORMAT'
+        elif val == 37808: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 4,  4)
+        elif val == 37809: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 5,  4)
+        elif val == 37810: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 5,  5)
+        elif val == 37811: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 6,  5)
+        elif val == 37812: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 6,  6)
+        elif val == 37813: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 8,  5)
+        elif val == 37814: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 8,  6)
+        elif val == 37815: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format( 8,  8)
+        elif val == 37816: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10,  5)
+        elif val == 37817: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10,  6)
+        elif val == 37818: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10,  8)
+        elif val == 37819: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(10, 10)
+        elif val == 37820: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(12, 10)
+        elif val == 37821: return 'COMPRESSED_RGBA_ASTC_{0}x{1}_KHR'.format(12, 12)
+        else                     : return ''
 
     @staticmethod
     def _freq_str (val: int) -> str:
@@ -95,6 +139,19 @@ class Annotation:
             return int_str
 
     @staticmethod
+    def _reg_rotate_str (val: int) -> str:
+        '''Uniform representation of REG_ROTATE's value.'''
+        if   val == 0b000: return 'landscape'
+        elif val == 0b001: return 'inverted landscape'
+        elif val == 0b010: return 'potrait'
+        elif val == 0b011: return 'inverted potrait'
+        elif val == 0b100: return 'mirrored landscape'
+        elif val == 0b101: return 'mirrored inverted landscape'
+        elif val == 0b110: return 'mirrored potrait'
+        elif val == 0b111: return 'mirrored inverted potrait'
+        else             : return ''
+
+    @staticmethod
     def _size_str (val: int) -> str:
         '''Uniform representation of size parameters.'''
         if   val >= 1024**2: return '{:.1f}'.format(val/1024**2) + 'MiB'
@@ -124,7 +181,9 @@ class Command (Annotation):
             try:
                 # parameter is represented by '<par>_str'
                 val_str = getattr(self, name + '_str')
-                assert val_str
+                if not val_str:
+                    print(f'no string for {name} in {self}')
+                    assert val_str
             except AttributeError:
                 # '<par>_str' doesn't exist
                 val_str = ''
@@ -154,16 +213,6 @@ class Command (Annotation):
         '''Return a list of command's parameters, if any.'''
         return [f.name for f in dataclasses.fields(self)
                 if not f.name.endswith('_')]
-
-    @staticmethod
-    def _fixed_point_str (val: int, int_len: int, dec_len: int) -> str:
-        '''Return a string representation of a fixed-point value, "int.dec"-bit long.'''
-        tot_len = int_len + dec_len
-        assert(tot_len <= 32)
-        v = val / 2**dec_len
-        i = (val >> dec_len) & (2**int_len - 1)
-        d = (val >> 0      ) & (2**dec_len - 1)
-        return f'{v} ({i}.{d})'
 
     @staticmethod
     def _matrix_abde_str (v: int, p: int = -1) -> str:

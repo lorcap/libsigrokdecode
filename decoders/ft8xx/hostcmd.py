@@ -87,8 +87,11 @@ class CLKSEL (Command):
     clock: int  # clock frequency
     pll:   int  # PLL range
 
+    def valid (self) -> bool:
+        return bool(self.value)
+
     @property
-    def clock_str (self) -> str:
+    def value (self) -> str:
         if self.clock == 0 and self.pll == 0:
             ft80x_mhz = '36' if self.val_ == 0x61 else '48'
             return self._variant(ft80x_mhz, '60', '60', 'MHz')
@@ -97,6 +100,10 @@ class CLKSEL (Command):
             return f'{self.clock}x osc frequency'
         else:
             return ''
+
+    @property
+    def clock_str (self) -> str:
+        return self.value if self.value else '(invalid)'
 
 @dataclass
 class PIN_PD_STATE (Command):
